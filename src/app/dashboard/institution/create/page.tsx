@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { Upload, FileText, CheckCircle2 } from "lucide-react";
+import { useState, useRef } from "react";
+import { Upload, FileText, CheckCircle2, Loader2, AlertCircle, X, FileCheck } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 export default function CreateCredentialPage() {
+    const { data: session } = useSession();
+    const router = useRouter();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     const [formData, setFormData] = useState({
         studentName: "",
         studentEmail: "",
-        studentId: "",
+        studentRollNumber: "",
         degreeTitle: "",
         fieldOfStudy: "",
         graduationYear: "",
@@ -15,10 +21,118 @@ export default function CreateCredentialPage() {
         description: "",
     });
 
+    const [file, setFile] = useState<File | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState(false);
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFile = e.target.files?.[0];
+        if (selectedFile) {
+            if (selectedFile.size > 10 * 1024 * 1024) {
+                setError("File size exceeds 10MB limit.");
+                return;
+            }
+            setFile(selectedFile);
+            setError("");
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const droppedFile = e.dataTransfer.files?.[0];
+        if (droppedFile) {
+            if (droppedFile.size > 10 * 1024 * 1024) {
+                setError("File size exceeds 10MB limit.");
+                return;
+            }
+            setFile(droppedFile);
+            setError("");
+        }
+    };
+
+    const removeFile = () => {
+        setFile(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!session?.user?.id) {
+            setError("You must be logged in to issue credentials.");
+            return;
+        }
+
+        if (!formData.studentEmail || !formData.studentName || !formData.degreeTitle || !formData.fieldOfStudy) {
+            setError("Please fill in all required fields.");
+            return;
+        }
+
+        setLoading(true);
+        setError("");
+
+        try {
+            const response = await fetch("/api/degrees/issue", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    universityId: session.user.id,
+                    studentEmail: formData.studentEmail,
+                    studentName: formData.studentName,
+                    degreeTitle: formData.degreeTitle,
+                    branch: formData.fieldOfStudy,
+                    // Note: In a real app, we would upload the file to IPFS/S3 here
+                    // For now, we just pass the file name as a placeholder for credentialHash
+                    credentialHash: file ? `FILE_UPLOADED:${file.name}` : null,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setSuccess(true);
+                // Reset form after 2 seconds and redirect
+                setTimeout(() => {
+                    router.push("/dashboard/institution/records");
+                }, 2000);
+            } else {
+                setError(data.message || "Failed to issue credential.");
+            }
+        } catch (err) {
+            console.error("Issuance Error:", err);
+            setError("An unexpected error occurred. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (success) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 space-y-6">
+                <div className="w-20 h-20 bg-green-500/10 border border-green-500/20 rounded-full flex items-center justify-center">
+                    <CheckCircle2 className="w-10 h-10 text-green-500" />
+                </div>
+                <div className="text-center">
+                    <h2 className="text-2xl font-semibold">Credential Issued Successfully!</h2>
+                    <p className="text-gray-400 mt-2">The student will now see this in their dashboard.</p>
+                </div>
+                <p className="text-sm text-gray-500 animate-pulse">Redirecting to records...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8 max-w-5xl">
@@ -29,9 +143,16 @@ export default function CreateCredentialPage() {
                 </p>
             </div>
 
+            {error && (
+                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-500 text-sm">
+                    <AlertCircle className="w-5 h-5 shrink-0" />
+                    <p>{error}</p>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
                 <div className="xl:col-span-2 space-y-8">
-                    <form className="space-y-8">
+                    <form onSubmit={handleSubmit} className="space-y-8">
                         {/* 1. Student Information */}
                         <div className="p-6 rounded-xl border border-[#1C1C1C] bg-[#050505] space-y-6">
                             <h2 className="text-xl font-medium border-b border-[#1C1C1C] pb-4">
@@ -40,11 +161,12 @@ export default function CreateCredentialPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-300">
-                                        Student Full Name
+                                        Student Full Name *
                                     </label>
                                     <input
                                         type="text"
                                         name="studentName"
+                                        required
                                         value={formData.studentName}
                                         onChange={handleChange}
                                         placeholder="Enter full name"
@@ -53,11 +175,12 @@ export default function CreateCredentialPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-300">
-                                        Student Email Address
+                                        Student Email Address *
                                     </label>
                                     <input
                                         type="email"
                                         name="studentEmail"
+                                        required
                                         value={formData.studentEmail}
                                         onChange={handleChange}
                                         placeholder="student@example.com"
@@ -66,12 +189,12 @@ export default function CreateCredentialPage() {
                                 </div>
                                 <div className="space-y-2 md:col-span-2">
                                     <label className="text-sm font-medium text-gray-300">
-                                        Student ID / Roll Number
+                                        Student ID / Roll Number (optional)
                                     </label>
                                     <input
                                         type="text"
-                                        name="studentId"
-                                        value={formData.studentId}
+                                        name="studentRollNumber"
+                                        value={formData.studentRollNumber}
                                         onChange={handleChange}
                                         placeholder="e.g. STU-2023-001"
                                         className="w-full bg-[#0A0A0A] border border-[#222] rounded-lg px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-white transition-colors"
@@ -88,11 +211,12 @@ export default function CreateCredentialPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2 md:col-span-2">
                                     <label className="text-sm font-medium text-gray-300">
-                                        Degree / Certification Title
+                                        Degree / Certification Title *
                                     </label>
                                     <input
                                         type="text"
                                         name="degreeTitle"
+                                        required
                                         value={formData.degreeTitle}
                                         onChange={handleChange}
                                         placeholder="e.g. Bachelor of Science in Computer Science"
@@ -101,11 +225,12 @@ export default function CreateCredentialPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-300">
-                                        Field of Study
+                                        Field of Study *
                                     </label>
                                     <input
                                         type="text"
                                         name="fieldOfStudy"
+                                        required
                                         value={formData.fieldOfStudy}
                                         onChange={handleChange}
                                         placeholder="e.g. Computer Science"
@@ -159,27 +284,76 @@ export default function CreateCredentialPage() {
                             <h2 className="text-xl font-medium border-b border-[#1C1C1C] pb-4">
                                 3. Certificate Upload
                             </h2>
-                            <div className="border-2 border-dashed border-[#222] rounded-xl p-10 flex flex-col items-center justify-center text-center hover:bg-[#0A0A0A] transition-colors cursor-pointer group">
-                                <div className="w-12 h-12 rounded-full bg-[#111] flex items-center justify-center mb-4 group-hover:bg-[#1C1C1C] transition-colors">
-                                    <Upload className="w-6 h-6 text-gray-400 group-hover:text-white" />
+                            
+                            <input 
+                                type="file" 
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                className="hidden"
+                            />
+
+                            {!file ? (
+                                <div 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    onDragOver={handleDragOver}
+                                    onDrop={handleDrop}
+                                    className="border-2 border-dashed border-[#222] rounded-xl p-10 flex flex-col items-center justify-center text-center hover:bg-[#0A0A0A] hover:border-gray-600 transition-all cursor-pointer group"
+                                >
+                                    <div className="w-12 h-12 rounded-full bg-[#111] flex items-center justify-center mb-4 group-hover:bg-[#1C1C1C] transition-colors">
+                                        <Upload className="w-6 h-6 text-gray-400 group-hover:text-white" />
+                                    </div>
+                                    <p className="text-sm font-medium text-gray-300">
+                                        Click to upload or drag and drop
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        PDF, JPG, or PNG (max. 10MB)
+                                    </p>
                                 </div>
-                                <p className="text-sm font-medium text-gray-300">
-                                    Click to upload or drag and drop
-                                </p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                    PDF, JPG, or PNG (max. 10MB)
-                                </p>
-                            </div>
+                            ) : (
+                                <div className="p-4 rounded-xl border border-[#1C1C1C] bg-[#0A0A0A] flex items-center justify-between group">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-lg bg-brand/10 flex items-center justify-center">
+                                            <FileCheck className="w-5 h-5 text-brand" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-white truncate max-w-[200px] md:max-w-[400px]">
+                                                {file.name}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                {(file.size / (1024 * 1024)).toFixed(2)} MB
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        type="button"
+                                        onClick={removeFile}
+                                        className="p-2 text-gray-500 hover:text-red-500 transition-colors"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {/* 5. Primary Action Button */}
                         <div className="flex justify-end pt-4">
                             <button
-                                type="button"
-                                className="px-6 py-3 bg-white text-black font-medium rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
+                                type="submit"
+                                disabled={loading}
+                                className="px-6 py-3 bg-white text-black font-medium rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                <CheckCircle2 className="w-5 h-5" />
-                                Create Credential
+                                {loading ? (
+                                    <>
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        Issuing...
+                                    </>
+                                ) : (
+                                    <>
+                                        <CheckCircle2 className="w-5 h-5" />
+                                        Create Credential
+                                    </>
+                                )}
                             </button>
                         </div>
                     </form>
@@ -212,7 +386,7 @@ export default function CreateCredentialPage() {
                                         </div>
                                         <div className="flex justify-between items-start gap-4">
                                             <span className="text-gray-500">Student ID:</span>
-                                            <span className="text-right break-words">{formData.studentId || "—"}</span>
+                                            <span className="text-right break-words">{formData.studentRollNumber || "—"}</span>
                                         </div>
                                         <div className="flex justify-between items-start gap-4">
                                             <span className="text-gray-500">Major:</span>
@@ -223,6 +397,13 @@ export default function CreateCredentialPage() {
                                             <span className="text-right break-words">{formData.graduationYear || "—"}</span>
                                         </div>
                                     </div>
+                                    
+                                    {file && (
+                                        <div className="mt-4 pt-3 border-t border-[#1C1C1C] flex items-center gap-2 text-[10px] text-gray-500 italic">
+                                            <FileCheck className="w-3 h-3" />
+                                            Certificate attached: {file.name}
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="py-12 text-center text-sm text-gray-500">
