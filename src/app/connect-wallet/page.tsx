@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { signIn } from "next-auth/react";
@@ -17,6 +17,7 @@ export default function ConnectWallet() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userClickedConnect, setUserClickedConnect] = useState(false);
+  const loginStarted = useRef(false);
 
   // PART D: ROLE VALIDATION
   useEffect(() => {
@@ -28,11 +29,14 @@ export default function ConnectWallet() {
 
   // Handle successful connection
   useEffect(() => {
-    const handleLogin = async () => {
-      // ONLY proceed if the user actually clicked connect in this component session
-      if (isConnected && address && !isLoggingIn && userClickedConnect) {
-        setIsLoggingIn(true);
-        setError(null);
+    // ONLY proceed if the user actually clicked connect in this component session
+    if (!isConnected || !address || isLoggingIn || !userClickedConnect || loginStarted.current) return;
+    
+    loginStarted.current = true;
+    setIsLoggingIn(true);
+    setError(null);
+
+    const performLogin = async () => {
         try {
           const role = localStorage.getItem("selectedRole");
           const response = await fetch('/api/auth/wallet-login', {
@@ -47,6 +51,7 @@ export default function ConnectWallet() {
           });
 
           if (!response.ok) {
+            loginStarted.current = false; // Allow retry on failure
             throw new Error('Failed to login with wallet');
           }
 
@@ -63,6 +68,7 @@ export default function ConnectWallet() {
           });
 
           if (result?.error) {
+              loginStarted.current = false; // Allow retry on failure
               throw new Error("Failed to create session");
           }
 
@@ -82,14 +88,14 @@ export default function ConnectWallet() {
         } catch (err: any) {
           console.error("Login error:", err);
           setError(err.message || "Something went wrong during login");
+          loginStarted.current = false; // Allow retry on error
         } finally {
           setIsLoggingIn(false);
         }
-      }
     };
 
-    handleLogin();
-  }, [isConnected, address, router]);
+    performLogin();
+  }, [isConnected, address, router, userClickedConnect, isLoggingIn]);
 
   const role = typeof window !== 'undefined' ? localStorage.getItem("selectedRole") : null;
 

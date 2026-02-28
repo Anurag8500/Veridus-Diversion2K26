@@ -1,13 +1,12 @@
 import { ethers } from "ethers"; 
+import BlockchainProvider from "./provider";
  
  function getSBTContract() { 
-   const rpcUrl = process.env.RPC_URL!; 
    const privateKey = process.env.PRIVATE_KEY!; 
    const contractAddress = 
      process.env.SBT_CONTRACT_ADDRESS!; 
  
-   const provider = 
-     new ethers.JsonRpcProvider(rpcUrl); 
+   const provider = BlockchainProvider.getInstance(); 
  
    const wallet = 
      new ethers.Wallet(privateKey, provider); 

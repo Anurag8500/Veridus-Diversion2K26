@@ -6,23 +6,28 @@ export async function POST(req: NextRequest) {
     try {
         await dbConnect();
         
-        // --- Index Migration Fix ---
+        let body;
         try {
-            const indexes = await User.collection.getIndexes();
-            if (indexes.email_1) {
-                console.log("Found legacy email_1 index, dropping it...");
-                await User.collection.dropIndex("email_1");
-            }
-        } catch (idxError) {
-            // Silently ignore if index doesn't exist or already dropped
-        }
-        // ---------------------------
-
-        const { walletAddress, role } = await req.json();
-
-        if (!walletAddress || !role) {
+            body = await req.json();
+        } catch (jsonErr) {
             return NextResponse.json(
-                { error: "Wallet address and role are required" },
+                { error: "Invalid JSON body" },
+                { status: 400 }
+            );
+        }
+
+        const { walletAddress, role } = body;
+
+        if (!walletAddress) {
+            return NextResponse.json(
+                { error: "Wallet address is required" },
+                { status: 400 }
+            );
+        }
+
+        if (!role) {
+            return NextResponse.json(
+                { error: "Role is required" },
                 { status: 400 }
             );
         }

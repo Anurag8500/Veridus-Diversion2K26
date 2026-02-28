@@ -124,10 +124,6 @@ const DegreeSchema = new Schema<IDegree>(
     }
 );
 
-DegreeSchema.index({ degreeId: 1 });
-DegreeSchema.index({ studentWallet: 1 });
-DegreeSchema.index({ institutionWallet: 1 });
-
 // Prevent model re-compilation during hot reload
 const Degree = models.Degree || model<IDegree>("Degree", DegreeSchema);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAccount } from "wagmi";
 import { 
     Search, 
@@ -29,10 +29,13 @@ export default function MyCredentialsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
+    const fetchStarted = useRef(false);
 
     useEffect(() => {
         const fetchDegrees = async () => {
             if (!isConnected || !address) return;
+            if (fetchStarted.current) return;
+            fetchStarted.current = true;
 
             try {
                 setLoading(true);

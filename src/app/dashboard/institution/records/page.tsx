@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Search, Filter, Eye, Download, Share2, MoreVertical, Loader2, FileText, AlertCircle } from "lucide-react";
 import { useAccount } from "wagmi";
 
@@ -10,10 +10,13 @@ export default function CredentialRecordsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
+    const fetchStarted = useRef(false);
 
     useEffect(() => {
         const fetchDegrees = async () => {
             if (!isConnected || !address) return;
+            if (fetchStarted.current) return;
+            fetchStarted.current = true;
 
             try {
                 setLoading(true);
