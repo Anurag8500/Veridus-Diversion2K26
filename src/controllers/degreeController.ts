@@ -4,6 +4,7 @@ import { generateDegreeId } from "@/lib/degreeUtils";
 import { generateCredentialHash } from "@/lib/hashCredential";
 import QRCode from "qrcode";
 import { anchorCredential } from "@/lib/blockchain/anchorCredential";
+import { mintSoulbound } from "@/lib/blockchain/mintSBT";
 
 /**
  * Interface for the degree issuance payload.
@@ -110,6 +111,23 @@ export const issueDegree = async (institutionWallet: string, payload: IssueDegre
     } catch (bcError) {
         console.error("[BLOCKCHAIN ANCHORING ERROR]", bcError);
         // We do not throw here, as per Part 5 requirements
+    }
+
+    // 9. Soulbound Token (SBT) Minting
+    // If SBT minting fails, credential issuance must STILL succeed.
+    try {
+        const metadataURI = newDegree.verificationUrl;
+        if (metadataURI) {
+            const sbtTx = await mintSoulbound(
+                normalizedStudentWallet,
+                metadataURI
+            );
+            newDegree.sbtTxHash = sbtTx;
+            await newDegree.save();
+        }
+    } catch (sbtError) {
+        console.error("[SBT MINT ERROR]", sbtError);
+        // We do not throw here, as per requirements
     }
 
     return newDegree;

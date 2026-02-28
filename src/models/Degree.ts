@@ -16,6 +16,8 @@ export interface IDegree extends Document {
     ipfsHash?: string | null;
     blockchainTxHash?: string | null;
     anchoredAt?: Date | null;
+    sbtTokenId?: number | null;
+    sbtTxHash?: string | null;
     credentialHash?: string | null;
     hashAlgorithm?: string;
     verificationUrl?: string;
@@ -86,6 +88,14 @@ const DegreeSchema = new Schema<IDegree>(
         },
         anchoredAt: {
             type: Date,
+            default: null,
+        },
+        sbtTokenId: {
+            type: Number,
+            default: null,
+        },
+        sbtTxHash: {
+            type: String,
             default: null,
         },
         credentialHash: {

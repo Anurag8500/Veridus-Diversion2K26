@@ -10,8 +10,9 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.20", // matches VeridusAnchor.sol
+    version: "0.8.24",
     settings: {
+      evmVersion: "cancun",
       optimizer: {
         enabled: true,
         runs: 200,
