@@ -27,9 +27,7 @@ const UserSchema = new Schema<IUser>({
     },
     password: {
         type: String,
-        required: function(this: IUser) {
-            return !this.oauthProvider;
-        },
+        required: false,
     },
     role: {
         type: String,

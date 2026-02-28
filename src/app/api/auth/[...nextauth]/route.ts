@@ -1,5 +1,6 @@
 import NextAuth, { DefaultSession, DefaultUser } from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
+import CredentialsProvider from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
 
@@ -26,55 +27,61 @@ declare module "next-auth/jwt" {
 
 const handler = NextAuth({
     providers: [
-        GoogleProvider({
-            clientId: process.env.GOOGLE_CLIENT_ID!,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+        CredentialsProvider({
+            name: "Credentials",
+            credentials: {
+                email: { label: "Email", type: "email" },
+                password: { label: "Password", type: "password" },
+            },
+            async authorize(credentials) {
+                if (!credentials?.email || !credentials?.password) {
+                    throw new Error("Missing email or password");
+                }
+
+                await connectDB();
+
+                const user = await User.findOne({
+                    email: credentials.email.toLowerCase(),
+                });
+
+                if (!user) {
+                    throw new Error("Invalid credentials");
+                }
+
+                const isMatch = await bcrypt.compare(
+                    credentials.password,
+                    user.password
+                );
+
+                if (!isMatch) {
+                    throw new Error("Invalid credentials");
+                }
+
+                if (!user.isEmailVerified) {
+                    throw new Error("Please verify your email before signing in.");
+                }
+
+                // Return the object that NextAuth will store in the JWT
+                return {
+                    id: (user._id as string).toString(),
+                    email: user.email,
+                    name: user.name,
+                    role: user.role,
+                };
+            },
         }),
     ],
     session: {
         strategy: "jwt",
     },
     callbacks: {
-        async signIn({ user, account }) {
-            if (account?.provider === "google") {
-                await connectDB();
-                
-                try {
-                    let dbUser = await User.findOne({ email: user.email });
-                    
-                    if (!dbUser) {
-                        // Create new user for first time Google login
-                        dbUser = await User.create({
-                            name: user.name,
-                            email: user.email,
-                            role: null,
-                            isEmailVerified: true,
-                            oauthProvider: "google",
-                        });
-                    } else if (!dbUser.oauthProvider) {
-                        // Upgrade existing email/password user to Google OAuth
-                        dbUser.oauthProvider = "google";
-                        await dbUser.save();
-                    }
-
-                    // Attach DB info to NextAuth user object for the jwt callback
-                    user.id = (dbUser._id as string).toString();
-                    user.role = dbUser.role;
-
-                    return true;
-                } catch (error) {
-                    console.error("Error during Google sign in:", error);
-                    return false;
-                }
-            }
-            return true;
-        },
         async jwt({ token, user, trigger, session }) {
-            // Initial sign in: user object is available
+            // Initial sign in: user object is available from authorize()
             if (user) {
                 token.userId = user.id;
                 token.role = user.role;
                 token.email = user.email;
+                token.name = user.name;
             }
 
             // Handle manual session update (e.g. after set-role)
@@ -85,10 +92,12 @@ const handler = NextAuth({
             return token;
         },
         async session({ session, token }) {
-            // Attach custom fields to the session
+            // Attach custom fields to the session object
             if (session.user) {
                 session.user.id = token.userId as string;
                 session.user.role = token.role as string | null;
+                session.user.name = token.name as string;
+                session.user.email = token.email as string;
             }
             return session;
         },
