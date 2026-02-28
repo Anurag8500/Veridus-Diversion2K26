@@ -18,17 +18,17 @@ export async function POST(req: NextRequest) {
         await connectDB();
 
         const body = await req.json();
-        const { universityId, ...payload } = body;
+        const { institutionWallet, ...payload } = body;
 
-        // Temporarily accept universityId from the body if auth middleware is not yet implemented
-        if (!universityId) {
+        // Security Rule: Ensure institutionWallet is provided (should be from session in production)
+        if (!institutionWallet) {
             return NextResponse.json(
-                { success: false, message: "University ID is required." },
+                { success: false, message: "Institution wallet address is required." },
                 { status: 400 }
             );
         }
 
-        const degree = await issueDegree(universityId, payload);
+        const degree = await issueDegree(institutionWallet, payload);
 
         return NextResponse.json(
             {

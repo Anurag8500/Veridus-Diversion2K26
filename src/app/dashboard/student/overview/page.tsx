@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useAccount } from "wagmi";
 import Link from "next/link";
 import { Wallet, Share2, User as UserIcon, Loader2 } from "lucide-react";
 
@@ -11,7 +11,7 @@ interface Degree {
 }
 
 export default function StudentOverviewPage() {
-    const { data: session } = useSession();
+    const { address, isConnected } = useAccount();
     const [stats, setStats] = useState({
         total: 0,
         verified: 0,
@@ -19,15 +19,29 @@ export default function StudentOverviewPage() {
         activity: 0
     });
     const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState<any>(null);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
-            if (!session?.user?.id) return;
+            if (!isConnected || !address) return;
 
             try {
                 setLoading(true);
-                // Fetch degrees to calculate stats
-                const response = await fetch(`/api/degrees/student?studentId=${session.user.id}`);
+                
+                // First, establish/fetch user identity using wallet-login
+                const authResponse = await fetch('/api/auth/wallet-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ walletAddress: address, role: "student" }),
+                });
+                
+                if (authResponse.ok) {
+                    const { user: userData } = await authResponse.json();
+                    setUser(userData);
+                }
+
+                // Fetch degrees using wallet address
+                const response = await fetch(`/api/degrees/student?studentWallet=${address}`);
                 const data = await response.json();
 
                 if (data.success) {
@@ -49,7 +63,7 @@ export default function StudentOverviewPage() {
         };
 
         fetchDashboardData();
-    }, [session?.user?.id]);
+    }, [isConnected, address]);
 
     if (loading) {
         return (
@@ -73,9 +87,9 @@ export default function StudentOverviewPage() {
             {/* 2. Welcome Section */}
             <div className="p-8 rounded-xl bg-gradient-to-br from-[#111111] to-[#0A0A0A] border border-[#1C1C1C] relative overflow-hidden">
                 <div className="relative z-10">
-                    <h2 className="text-2xl font-medium">Welcome back, {session?.user?.name || "Student"}</h2>
+                    <h2 className="text-2xl font-medium">Welcome back, {user?.fullName || "Student"}</h2>
                     <p className="text-gray-400 mt-2 max-w-2xl">
-                        Your verified academic credentials are securely stored on VERIDUS.
+                        Your verified academic credentials are securely stored on VERIDUS using your wallet address.
                     </p>
                 </div>
             </div>

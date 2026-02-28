@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useAccount } from "wagmi";
 import { 
     Search, 
     Filter, 
@@ -17,17 +17,14 @@ interface Degree {
     _id: string;
     degreeId: string;
     degreeTitle: string;
-    universityId: {
-        _id: string;
-        name: string;
-    };
+    institutionName: string;
     branch: string;
     issueDate: string;
     status: string;
 }
 
 export default function MyCredentialsPage() {
-    const { data: session } = useSession();
+    const { address, isConnected } = useAccount();
     const [degrees, setDegrees] = useState<Degree[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -35,11 +32,11 @@ export default function MyCredentialsPage() {
 
     useEffect(() => {
         const fetchDegrees = async () => {
-            if (!session?.user?.id) return;
+            if (!isConnected || !address) return;
 
             try {
                 setLoading(true);
-                const response = await fetch(`/api/degrees/student?studentId=${session.user.id}`);
+                const response = await fetch(`/api/degrees/student?studentWallet=${address}`);
                 const data = await response.json();
 
                 if (data.success) {
@@ -56,11 +53,11 @@ export default function MyCredentialsPage() {
         };
 
         fetchDegrees();
-    }, [session?.user?.id]);
+    }, [isConnected, address]);
 
     const filteredDegrees = degrees.filter(degree => 
         degree.degreeTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        degree.universityId.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        degree.institutionName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         degree.degreeId.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -140,7 +137,7 @@ export default function MyCredentialsPage() {
                                                 <span className="text-xs text-gray-500 mt-0.5">{cred.degreeId}</span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-gray-300">{cred.universityId?.name || "N/A"}</td>
+                                        <td className="px-6 py-4 text-gray-300">{cred.institutionName || "N/A"}</td>
                                         <td className="px-6 py-4 text-gray-400">
                                             {new Date(cred.issueDate).toLocaleDateString('en-GB', {
                                                 day: '2-digit',

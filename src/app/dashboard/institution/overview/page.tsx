@@ -3,10 +3,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { FilePlus, Files, Users, Building2, Loader2, FileText } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useAccount } from "wagmi";
 
 export default function OverviewPage() {
-    const { data: session } = useSession();
+    const { address, isConnected } = useAccount();
     const [stats, setStats] = useState({
         totalIssued: 0,
         activeStudents: 0, // In a real app, we'd need a separate count for this
@@ -15,14 +15,28 @@ export default function OverviewPage() {
     });
     const [recentDegrees, setRecentDegrees] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState<any>(null);
 
     useEffect(() => {
         const fetchInstitutionData = async () => {
-            if (!session?.user?.id) return;
+            if (!isConnected || !address) return;
 
             try {
                 setLoading(true);
-                const response = await fetch(`/api/degrees/institution?institutionId=${session.user.id}`);
+
+                // Establish/fetch institution identity
+                const authResponse = await fetch('/api/auth/wallet-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ walletAddress: address, role: "institution" }),
+                });
+                
+                if (authResponse.ok) {
+                    const { user: userData } = await authResponse.json();
+                    setUser(userData);
+                }
+
+                const response = await fetch(`/api/degrees/institution?institutionWallet=${address}`);
                 const data = await response.json();
 
                 if (data.success) {
@@ -33,11 +47,11 @@ export default function OverviewPage() {
                     const totalIssued = degrees.length;
                     const validDegrees = degrees.filter((d: any) => d.status === "valid").length;
                     
-                    // Count unique students
+                    // Count unique students using wallet addresses
                     const uniqueStudents = new Set(
                         degrees
-                            .filter((d: any) => d.studentId?._id)
-                            .map((d: any) => d.studentId._id)
+                            .filter((d: any) => d.studentWallet)
+                            .map((d: any) => d.studentWallet)
                     ).size;
 
                     setStats({
@@ -59,7 +73,7 @@ export default function OverviewPage() {
         };
 
         fetchInstitutionData();
-    }, [session?.user?.id]);
+    }, [isConnected, address]);
 
     return (
         <div className="space-y-10">
@@ -74,9 +88,9 @@ export default function OverviewPage() {
             {/* 2. Welcome Section */}
             <div className="p-8 rounded-xl bg-gradient-to-br from-[#111111] to-[#0A0A0A] border border-[#1C1C1C] relative overflow-hidden">
                 <div className="relative z-10">
-                    <h2 className="text-2xl font-medium">Welcome back, {session?.user?.name || "Institution"}</h2>
+                    <h2 className="text-2xl font-medium">Welcome back, {user?.institutionName || "Institution"}</h2>
                     <p className="text-gray-400 mt-2 max-w-2xl">
-                        Manage and issue verified academic credentials securely through VERIDUS.
+                        Manage and issue verified academic credentials securely through VERIDUS using your wallet address.
                     </p>
                 </div>
             </div>

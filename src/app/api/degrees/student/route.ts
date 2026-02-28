@@ -17,16 +17,16 @@ export async function GET(req: NextRequest) {
         await connectDB();
 
         const { searchParams } = new URL(req.url);
-        const studentId = searchParams.get("studentId");
+        const studentWallet = searchParams.get("studentWallet");
 
-        if (!studentId) {
+        if (!studentWallet) {
             return NextResponse.json(
-                { success: false, message: "Student ID is required." },
+                { success: false, message: "Student wallet address is required." },
                 { status: 400 }
             );
         }
 
-        const degrees = await getStudentDegrees(studentId);
+        const degrees = await getStudentDegrees(studentWallet);
 
         return NextResponse.json(
             {

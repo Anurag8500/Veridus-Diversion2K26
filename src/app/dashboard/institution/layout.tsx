@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAccount, useDisconnect } from "wagmi";
+import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
 import {
     LayoutDashboard,
@@ -32,42 +33,58 @@ export default function InstitutionDashboardLayout({
     const router = useRouter();
     const { address, isConnected } = useAccount();
     const { disconnect } = useDisconnect();
+    const { data: session, status } = useSession();
     const [isLoading, setIsLoading] = useState(true);
     const [user, setUser] = useState<any>(null);
 
     useEffect(() => {
         const checkAuth = async () => {
-            if (isConnected && address) {
-                try {
-                    const response = await fetch('/api/auth/wallet-login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ walletAddress: address, role: "institution" }),
-                    });
-                    if (response.ok) {
-                        const { user } = await response.json();
-                        setUser(user);
-                        if (!user.profileCompleted) {
-                            router.push("/complete-profile");
+            // 1. If session is loading, do nothing
+            if (status === "loading") return;
+
+            // 2. If no session, redirect to home
+            if (status === "unauthenticated") {
+                router.push("/");
+                return;
+            }
+
+            // 3. If session exists, fetch user data if not already present
+            if (status === "authenticated" && session?.user) {
+                if (!user) {
+                    try {
+                        const response = await fetch('/api/auth/wallet-login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                walletAddress: session.user.walletAddress || address, 
+                                role: "institution" 
+                            }),
+                        });
+                        if (response.ok) {
+                            const { user: userData } = await response.json();
+                            setUser(userData);
+                            if (!userData.profileCompleted) {
+                                router.push("/complete-profile");
+                            }
+                        } else {
+                            signOut({ callbackUrl: "/" });
                         }
-                    } else {
-                        router.push("/");
+                    } catch (err) {
+                        console.error("Auth check error:", err);
+                    } finally {
+                        setIsLoading(false);
                     }
-                } catch (err) {
-                    router.push("/");
-                } finally {
+                } else {
                     setIsLoading(false);
                 }
-            } else if (!isConnected) {
-                router.push("/");
             }
         };
         checkAuth();
-    }, [isConnected, address, router]);
+    }, [status, session, address, router, user]);
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
         disconnect();
-        router.push("/");
+        await signOut({ callbackUrl: "/" });
     };
 
     if (isLoading) {

@@ -2,17 +2,17 @@
 
 import { useState, useRef } from "react";
 import { Upload, FileText, CheckCircle2, Loader2, AlertCircle, X, FileCheck } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useAccount } from "wagmi";
 import { useRouter } from "next/navigation";
 
 export default function CreateCredentialPage() {
-    const { data: session } = useSession();
+    const { address, isConnected } = useAccount();
     const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [formData, setFormData] = useState({
         studentName: "",
-        studentEmail: "",
+        studentWallet: "",
         studentRollNumber: "",
         degreeTitle: "",
         fieldOfStudy: "",
@@ -71,12 +71,12 @@ export default function CreateCredentialPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!session?.user?.id) {
-            setError("You must be logged in to issue credentials.");
+        if (!isConnected || !address) {
+            setError("You must connect your wallet to issue credentials.");
             return;
         }
 
-        if (!formData.studentEmail || !formData.studentName || !formData.degreeTitle || !formData.fieldOfStudy) {
+        if (!formData.studentWallet || !formData.studentName || !formData.degreeTitle || !formData.fieldOfStudy) {
             setError("Please fill in all required fields.");
             return;
         }
@@ -89,8 +89,8 @@ export default function CreateCredentialPage() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    universityId: session.user.id,
-                    studentEmail: formData.studentEmail,
+                    institutionWallet: address,
+                    studentWallet: formData.studentWallet,
                     studentName: formData.studentName,
                     degreeTitle: formData.degreeTitle,
                     branch: formData.fieldOfStudy,
@@ -175,15 +175,15 @@ export default function CreateCredentialPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-300">
-                                        Student Email Address *
+                                        Student Wallet Address *
                                     </label>
                                     <input
-                                        type="email"
-                                        name="studentEmail"
+                                        type="text"
+                                        name="studentWallet"
                                         required
-                                        value={formData.studentEmail}
+                                        value={formData.studentWallet}
                                         onChange={handleChange}
-                                        placeholder="student@example.com"
+                                        placeholder="0x..."
                                         className="w-full bg-[#0A0A0A] border border-[#222] rounded-lg px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-white transition-colors"
                                     />
                                 </div>

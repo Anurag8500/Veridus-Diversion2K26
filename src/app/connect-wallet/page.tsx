@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { signIn } from "next-auth/react";
 import { injected } from "wagmi/connectors";
 import { motion } from "framer-motion";
 import { Wallet, LogOut, ArrowRight, Loader2, AlertCircle } from "lucide-react";
@@ -50,6 +51,20 @@ export default function ConnectWallet() {
           }
 
           const { user } = await response.json();
+
+          // Create a session with NextAuth
+          const result = await signIn("credentials", {
+              redirect: false,
+              walletAddress: address,
+              role: user.role,
+              id: user._id,
+              name: user.fullName || user.institutionName || address,
+              email: user.officialEmail || "",
+          });
+
+          if (result?.error) {
+              throw new Error("Failed to create session");
+          }
 
           // PART C: CLEAR TEMP ROLE AFTER LOGIN
           localStorage.removeItem("selectedRole");

@@ -7,7 +7,7 @@ import { generateCredentialHash } from "@/lib/hashCredential";
  * Interface for the degree issuance payload.
  */
 export interface IssueDegreePayload {
-    studentEmail: string;
+    studentWallet: string;
     studentName: string;
     degreeTitle: string;
     branch: string;
@@ -17,34 +17,37 @@ export interface IssueDegreePayload {
 /**
  * Issues a new degree record after validation and unique ID generation.
  * 
- * @param universityId - The ID of the issuing university/institution.
+ * @param institutionWallet - The wallet address of the issuing university/institution.
  * @param payload - The degree details from the request.
  * @returns The created degree document.
  * @throws Error if validation fails or student is not found.
  */
-export const issueDegree = async (universityId: string, payload: IssueDegreePayload) => {
-    const { studentEmail, studentName, degreeTitle, branch } = payload;
+export const issueDegree = async (institutionWallet: string, payload: IssueDegreePayload) => {
+    const { studentWallet, studentName, degreeTitle, branch } = payload;
 
     // 1. Validate required fields
-    if (!studentEmail || !studentName || !degreeTitle || !branch) {
-        throw new Error("Missing required fields: studentEmail, studentName, degreeTitle, branch");
+    if (!studentWallet || !studentName || !degreeTitle || !branch || !institutionWallet) {
+        throw new Error("Missing required fields: studentWallet, studentName, degreeTitle, branch, institutionWallet");
     }
+
+    const normalizedStudentWallet = studentWallet.toLowerCase();
+    const normalizedInstitutionWallet = institutionWallet.toLowerCase();
 
     // 2. Find student (must have role "student" or "institution" depending on your User model roles)
     // Note: In your User.ts, roles are "student" | "institution"
     const student = await User.findOne({ 
-        email: studentEmail.toLowerCase(), 
+        walletAddress: normalizedStudentWallet, 
         role: "student" 
     });
 
     if (!student) {
-        throw new Error(`Student with email ${studentEmail} not found.`);
+        throw new Error(`Student with wallet address ${studentWallet} not found.`);
     }
 
     // 3. Find university to get its name for hashing
-    const university = await User.findById(universityId);
+    const university = await User.findOne({ walletAddress: normalizedInstitutionWallet, role: "institution" });
     if (!university) {
-        throw new Error("University not found.");
+        throw new Error("Institution not found.");
     }
 
     // 4. Generate UNIQUE degreeId (loop until unused)
@@ -61,20 +64,22 @@ export const issueDegree = async (universityId: string, payload: IssueDegreePayl
 
     // 5. Generate Credential Hash (SHA-256)
     const issueDate = new Date();
+    const instName = university.institutionName || university.name || "Unknown Institution";
     const credentialHash = generateCredentialHash({
         degreeId: uniqueDegreeId,
         studentName,
         degreeTitle,
         branch,
         issueDate,
-        institutionName: university.name,
+        institutionName: instName,
     });
 
     // 6. Create Degree document
     const newDegree = await Degree.create({
         degreeId: uniqueDegreeId,
-        studentId: student._id,
-        universityId,
+        studentWallet: normalizedStudentWallet,
+        institutionWallet: normalizedInstitutionWallet,
+        institutionName: instName,
         studentName, // Snapshot of name at issuance time
         degreeTitle,
         branch,
@@ -87,28 +92,59 @@ export const issueDegree = async (universityId: string, payload: IssueDegreePayl
 };
 
 /**
- * Fetches all degrees belonging to a specific student.
+ * Fetches all degrees belonging to a specific student using their wallet address.
  * 
- * @param studentId - The ID of the student.
- * @returns An array of degree documents with university info populated.
+ * @param studentWallet - The wallet address of the student.
+ * @returns An array of degree documents.
  */
-export const getStudentDegrees = async (studentId: string) => {
-    return await Degree.find({ studentId })
+export const getStudentDegrees = async (studentWallet: string) => {
+    const normalizedWallet = studentWallet.toLowerCase();
+    
+    // Migration: Handle legacy degrees if any
+    // This is a simple migration logic as requested in PART F
+    const legacyDegrees = await Degree.find({ studentId: { $exists: true }, studentWallet: { $exists: false } });
+    for (const degree of legacyDegrees) {
+        const student = await User.findById(degree.studentId);
+        if (student && student.walletAddress) {
+            degree.studentWallet = student.walletAddress.toLowerCase();
+            const institution = await User.findById(degree.universityId);
+            if (institution && institution.walletAddress) {
+                degree.institutionWallet = institution.walletAddress.toLowerCase();
+            }
+            await (degree as any).save();
+        }
+    }
+
+    return await Degree.find({ studentWallet: normalizedWallet })
         .sort({ createdAt: -1 })
-        .populate("universityId", "name")
         .lean();
 };
 
 /**
- * Fetches all degrees issued by a specific university/institution.
+ * Fetches all degrees issued by a specific institution using their wallet address.
  * 
- * @param universityId - The ID of the university.
+ * @param institutionWallet - The wallet address of the institution.
  * @returns An array of degree documents.
  */
-export const getInstitutionDegrees = async (universityId: string) => {
-    return await Degree.find({ universityId })
+export const getInstitutionDegrees = async (institutionWallet: string) => {
+    const normalizedWallet = institutionWallet.toLowerCase();
+
+    // Migration: Handle legacy degrees if any
+    const legacyDegrees = await Degree.find({ universityId: { $exists: true }, institutionWallet: { $exists: false } });
+    for (const degree of legacyDegrees) {
+        const institution = await User.findById(degree.universityId);
+        if (institution && institution.walletAddress) {
+            degree.institutionWallet = institution.walletAddress.toLowerCase();
+            const student = await User.findById(degree.studentId);
+            if (student && student.walletAddress) {
+                degree.studentWallet = student.walletAddress.toLowerCase();
+            }
+            await (degree as any).save();
+        }
+    }
+
+    return await Degree.find({ institutionWallet: normalizedWallet })
         .sort({ createdAt: -1 })
-        .populate("studentId", "name email")
         .lean();
 };
 

@@ -1,12 +1,13 @@
-import { Schema, Document, model, models, Types } from "mongoose";
+import { Schema, Document, model, models } from "mongoose";
 
 /**
  * Interface representing a Degree document in MongoDB.
  */
 export interface IDegree extends Document {
     degreeId: string;
-    studentId: Types.ObjectId;
-    universityId: Types.ObjectId;
+    studentWallet: string;
+    institutionWallet: string;
+    institutionName: string; // Snapshot of institution name at issuance time
     studentName: string; // Snapshot of name at issuance time
     degreeTitle: string;
     branch: string;
@@ -28,15 +29,24 @@ const DegreeSchema = new Schema<IDegree>(
             trim: true,
             index: true,
         },
-        studentId: {
-            type: Schema.Types.ObjectId,
-            ref: "User",
-            required: [true, "Student reference is required"],
+        studentWallet: {
+            type: String,
+            required: [true, "Student wallet address is required"],
+            lowercase: true,
+            trim: true,
+            index: true,
         },
-        universityId: {
-            type: Schema.Types.ObjectId,
-            ref: "User",
-            required: [true, "University reference is required"],
+        institutionWallet: {
+            type: String,
+            required: [true, "Institution wallet address is required"],
+            lowercase: true,
+            trim: true,
+            index: true,
+        },
+        institutionName: {
+            type: String,
+            required: [true, "Institution name snapshot is required"],
+            trim: true,
         },
         studentName: {
             type: String,
@@ -81,6 +91,8 @@ const DegreeSchema = new Schema<IDegree>(
 );
 
 DegreeSchema.index({ degreeId: 1 });
+DegreeSchema.index({ studentWallet: 1 });
+DegreeSchema.index({ institutionWallet: 1 });
 
 // Prevent model re-compilation during hot reload
 const Degree = models.Degree || model<IDegree>("Degree", DegreeSchema);

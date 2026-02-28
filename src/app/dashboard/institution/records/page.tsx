@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { Search, Filter, Eye, Download, Share2, MoreVertical, Loader2, FileText, AlertCircle } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useAccount } from "wagmi";
 
 export default function CredentialRecordsPage() {
-    const { data: session } = useSession();
+    const { address, isConnected } = useAccount();
     const [degrees, setDegrees] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -13,11 +13,11 @@ export default function CredentialRecordsPage() {
 
     useEffect(() => {
         const fetchDegrees = async () => {
-            if (!session?.user?.id) return;
+            if (!isConnected || !address) return;
 
             try {
                 setLoading(true);
-                const response = await fetch(`/api/degrees/institution?institutionId=${session.user.id}`);
+                const response = await fetch(`/api/degrees/institution?institutionWallet=${address}`);
                 const data = await response.json();
 
                 if (data.success) {
@@ -34,7 +34,7 @@ export default function CredentialRecordsPage() {
         };
 
         fetchDegrees();
-    }, [session?.user?.id]);
+    }, [isConnected, address]);
 
     const filteredDegrees = degrees.filter(degree => 
         degree.degreeTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
