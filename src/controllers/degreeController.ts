@@ -3,6 +3,7 @@ import User from "@/models/User";
 import { generateDegreeId } from "@/lib/degreeUtils";
 import { generateCredentialHash } from "@/lib/hashCredential";
 import QRCode from "qrcode";
+import { anchorCredential } from "@/lib/blockchain/anchorCredential";
 
 /**
  * Interface for the degree issuance payload.
@@ -96,6 +97,20 @@ export const issueDegree = async (institutionWallet: string, payload: IssueDegre
         verificationUrl,
         qrCode: qrCodeBase64
     });
+
+    // 8. Blockchain Anchoring
+    // If blockchain anchoring fails, credential issuance must STILL succeed.
+    try {
+        if (newDegree.credentialHash) {
+            const txHash = await anchorCredential(newDegree.credentialHash);
+            newDegree.blockchainTxHash = txHash;
+            newDegree.anchoredAt = new Date();
+            await newDegree.save();
+        }
+    } catch (bcError) {
+        console.error("[BLOCKCHAIN ANCHORING ERROR]", bcError);
+        // We do not throw here, as per Part 5 requirements
+    }
 
     return newDegree;
 };

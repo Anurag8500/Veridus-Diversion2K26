@@ -15,6 +15,7 @@ export interface IDegree extends Document {
     status: "valid" | "revoked";
     ipfsHash?: string | null;
     blockchainTxHash?: string | null;
+    anchoredAt?: Date | null;
     credentialHash?: string | null;
     hashAlgorithm?: string;
     verificationUrl?: string;
@@ -81,6 +82,10 @@ const DegreeSchema = new Schema<IDegree>(
         },
         blockchainTxHash: {
             type: String,
+            default: null,
+        },
+        anchoredAt: {
+            type: Date,
             default: null,
         },
         credentialHash: {

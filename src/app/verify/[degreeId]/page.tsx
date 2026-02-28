@@ -20,6 +20,7 @@ interface VerificationData {
     degreeId: string;
     status: string;
     isAuthentic: boolean;
+    blockchainVerified: boolean;
     storedHash: string;
     recomputedHash: string;
     academicData: {
@@ -28,6 +29,8 @@ interface VerificationData {
         branch: string;
         institutionName: string;
         issueDate: string;
+        blockchainTxHash?: string;
+        anchoredAt?: string;
     };
 }
 
@@ -124,6 +127,15 @@ export default function PublicVerifyPage({ params }: { params: Promise<{ degreeI
                             {isAuthentic ? "Authenticity Verified" : isTampered ? "Integrity Compromised" : "Credential Invalid"}
                         </span>
                     </div>
+
+                    {data.blockchainVerified && (
+                        <div className="flex items-center gap-3 px-5 py-2.5 rounded-full border bg-brand/5 border-brand/20 text-brand">
+                            <ShieldCheck className="w-5 h-5" />
+                            <span className="text-sm font-bold uppercase tracking-wider">
+                                Blockchain Anchored
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -142,6 +154,27 @@ export default function PublicVerifyPage({ params }: { params: Promise<{ degreeI
                                 <DetailItem icon={Info} label="Branch / Specialization" value={data.academicData.branch} />
                                 <DetailItem icon={Calendar} label="Issuance Date" value={formatDate(data.academicData.issueDate)} />
                             </div>
+
+                            {data.academicData.blockchainTxHash && (
+                                <div className="mt-10 pt-8 border-t border-[#1C1C1C] space-y-4">
+                                    <div className="flex items-center gap-2 text-gray-500">
+                                        <Fingerprint className="w-4 h-4" />
+                                        <span className="text-[10px] font-bold uppercase tracking-wider">On-Chain Evidence</span>
+                                    </div>
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                        <div className="space-y-1">
+                                            <p className="text-[10px] text-gray-500 font-mono">Transaction Hash</p>
+                                            <p className="text-xs font-mono text-brand break-all">{data.academicData.blockchainTxHash}</p>
+                                        </div>
+                                        {data.academicData.anchoredAt && (
+                                            <div className="text-right">
+                                                <p className="text-[10px] text-gray-500 font-mono">Anchored At</p>
+                                                <p className="text-xs font-mono text-gray-400">{formatDate(data.academicData.anchoredAt)}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
