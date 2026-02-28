@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { Web3Provider } from "@/components/Web3Provider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -29,7 +30,9 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} antialiased selection:bg-white/20 selection:text-white bg-background-base text-text-primary`} >
         <AuthProvider>
-          {children}
+          <Web3Provider>
+            {children}
+          </Web3Provider>
         </AuthProvider>
       </body>
     </html>

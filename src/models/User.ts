@@ -1,53 +1,74 @@
 import { Schema, Document, model, models } from "mongoose";
 
 export interface IUser extends Document {
-    name: string;
-    email: string;
-    password?: string;
-    role?: "student" | "institution" | null;
-    isEmailVerified: boolean;
-    emailVerificationToken?: string;
-    emailVerificationExpires?: Date;
-    oauthProvider?: "google";
+    walletAddress: string;
+    role: "student" | "institution";
+    profileCompleted: boolean;
     createdAt: Date;
+
+    // Student specific fields
+    fullName?: string;
+    rollNumber?: string;
+    department?: string;
+    graduationYear?: number;
+    dateOfBirth?: Date;
+    linkedinUrl?: string;
+
+    // Institution specific fields
+    institutionName?: string;
+    registrationId?: string;
+    officialEmail?: string;
+    domain?: string;
+    adminContactNumber?: string;
+    location?: string;
 }
 
 const UserSchema = new Schema<IUser>({
-    name: {
+    walletAddress: {
         type: String,
-        required: [true, "Name is required"],
-        trim: true,
-    },
-    email: {
-        type: String,
-        required: [true, "Email is required"],
+        required: true,
         unique: true,
         lowercase: true,
         trim: true,
-    },
-    password: {
-        type: String,
-        required: false,
+        index: true,
     },
     role: {
         type: String,
-        enum: ["student", "institution", null],
-        default: null,
+        enum: ["student", "institution"],
+        required: true,
     },
-    isEmailVerified: {
+    profileCompleted: {
         type: Boolean,
         default: false,
     },
-    oauthProvider: {
-        type: String,
-        enum: ["google"],
-    },
-    emailVerificationToken: String,
-    emailVerificationExpires: Date,
     createdAt: {
         type: Date,
         default: Date.now,
     },
+
+    // Student specific fields
+    fullName: { type: String, trim: true },
+    rollNumber: { type: String, trim: true },
+    department: { type: String, trim: true },
+    graduationYear: { type: Number },
+    dateOfBirth: { type: Date },
+    linkedinUrl: { type: String, trim: true },
+
+    // Institution specific fields
+    institutionName: { type: String, trim: true },
+    registrationId: { type: String, trim: true },
+    officialEmail: { 
+        type: String, 
+        lowercase: true, 
+        trim: true,
+        required: false,
+        unique: false,
+        sparse: true,
+        index: true
+    },
+    domain: { type: String, trim: true },
+    adminContactNumber: { type: String, trim: true },
+    location: { type: String, trim: true },
 });
 
 // Prevent model re-compilation during hot reload

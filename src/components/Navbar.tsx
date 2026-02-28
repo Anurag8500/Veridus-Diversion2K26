@@ -37,12 +37,7 @@ export function Navbar() {
                 </div>
 
                 <div className="hidden md:flex items-center gap-4">
-                    <Link href="/signin"
-                        className="text-sm font-medium text-text-secondary hover:text-text-primary px-4 py-2">
-                        Sign In
-                    </Link>
-
-                    <Link href="/signup"
+                    <Link href="/get-started"
                         className="text-sm font-medium bg-brand text-background-base px-5 py-2.5 rounded-full hover:bg-brand-hover transition-colors">
                         Get Started
                     </Link>

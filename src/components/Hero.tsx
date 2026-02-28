@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 
 export function Hero() {
     return (
@@ -44,12 +44,12 @@ export function Hero() {
                     transition={{ duration: 0.5, delay: 0.4 }}
                     className="flex flex-col sm:flex-row items-center justify-center gap-4"
                 >
-                    <Link href="/signin" className="w-full sm:w-auto px-8 py-4 bg-brand text-background-base rounded-full font-medium hover:bg-brand-hover hover:scale-105 active:scale-95 transition-all shadow-[0_0_40px_rgba(255,255,255,0.2)] flex items-center justify-center gap-2">
-                        Issue Degree <ArrowRight className="w-4 h-4" />
+                    <Link href="/get-started" className="w-full sm:w-auto px-8 py-4 bg-brand text-background-base rounded-full font-medium hover:bg-brand-hover hover:scale-105 active:scale-95 transition-all shadow-[0_0_40px_rgba(255,255,255,0.2)] flex items-center justify-center gap-2">
+                        Get Started <ArrowRight className="w-4 h-4" />
                     </Link>
-                    <Link href="/signin" className="w-full sm:w-auto px-8 py-4 bg-transparent border border-border-base text-text-primary rounded-full font-medium hover:bg-white/[0.08] hover:border-white/30 transition-all flex items-center justify-center">
-                        Verify Now
-                    </Link>
+                    <a href="#access" className="w-full sm:w-auto px-8 py-4 bg-transparent border border-border-base text-text-primary rounded-full font-medium hover:bg-white/[0.08] hover:border-white/30 transition-all flex items-center justify-center">
+                        Explore Now
+                    </a>
                 </motion.div>
             </div>
         </section>

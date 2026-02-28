@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { useAccount, useDisconnect } from "wagmi";
+import { useState, useEffect } from "react";
 import {
     LayoutDashboard,
     Wallet,
@@ -27,11 +28,53 @@ export default function StudentDashboardLayout({
 }) {
     const pathname = usePathname();
     const router = useRouter();
-    const { data: session } = useSession();
+    const { address, isConnected } = useAccount();
+    const { disconnect } = useDisconnect();
+    const [isLoading, setIsLoading] = useState(true);
+    const [user, setUser] = useState<any>(null);
 
-    const handleLogout = async () => {
-        await signOut({ redirect: true, callbackUrl: "/" });
+    useEffect(() => {
+        const checkAuth = async () => {
+            if (isConnected && address) {
+                try {
+                    const response = await fetch('/api/auth/wallet-login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ walletAddress: address, role: "student" }),
+                    });
+                    if (response.ok) {
+                        const { user } = await response.json();
+                        setUser(user);
+                        if (!user.profileCompleted) {
+                            router.push("/complete-profile");
+                        }
+                    } else {
+                        router.push("/");
+                    }
+                } catch (err) {
+                    router.push("/");
+                } finally {
+                    setIsLoading(false);
+                }
+            } else if (!isConnected) {
+                router.push("/");
+            }
+        };
+        checkAuth();
+    }, [isConnected, address, router]);
+
+    const handleLogout = () => {
+        disconnect();
+        router.push("/");
     };
+
+    if (isLoading) {
+        return (
+            <div className="h-screen bg-black flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-screen bg-black text-white">
@@ -64,9 +107,9 @@ export default function StudentDashboardLayout({
 
                 <div className="p-4 border-t border-[#1C1C1C]">
                     <div className="mb-4 px-2">
-                        <p className="text-sm font-medium truncate">{session?.user?.name || "Student"}</p>
+                        <p className="text-sm font-medium truncate">{user?.fullName || "Student"}</p>
                         <p className="text-xs text-gray-500 truncate transition-colors">
-                            {session?.user?.email || "student@email.com"}
+                            {user?.walletAddress?.slice(0, 6)}...{user?.walletAddress?.slice(-4)}
                         </p>
                     </div>
                     <button 

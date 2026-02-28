@@ -11,25 +11,25 @@ export function AccessPortals() {
             title: "Institution Portal",
             desc: "Issue and manage academic credentials securely on the ledger.",
             icon: <Building2 className="w-8 h-8" />,
-            btnText: "Login as Institution",
-            href: "/signin"
+            btnText: "Get Started",
+            href: "/get-started"
         },
         {
             id: "student",
             title: "Student Portal",
             desc: "View, manage and share your verified academic degrees.",
             icon: <GraduationCap className="w-8 h-8" />,
-            btnText: "Login as Student",
-            href: "/signin"
+            btnText: "Get Started",
+            href: "/get-started"
         },
         {
             id: "verification",
             title: "Verification Portal",
             desc: "Verify academic credentials instantly using secure links.",
             icon: <CheckCircle className="w-8 h-8" />,
-            btnText: "Verify Degree",
+            btnText: "Explore Now",
             primary: true,
-            href: "/signin"
+            href: "/get-started"
         }
     ];
 
