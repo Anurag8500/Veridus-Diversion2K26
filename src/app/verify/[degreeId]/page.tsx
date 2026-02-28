@@ -10,25 +10,30 @@ import {
     GraduationCap, 
     Calendar, 
     Fingerprint, 
-    Link as LinkIcon,
-    ExternalLink,
-    FileText
+    CheckCircle2,
+    XCircle,
+    Info
 } from "lucide-react";
+import Link from "next/link";
 
-interface Credential {
+interface VerificationData {
     degreeId: string;
-    studentName: string;
-    degreeTitle: string;
-    branch: string;
-    issueDate: string;
-    status: "valid" | "revoked";
-    institutionName: string;
-    blockchainTxHash?: string;
+    status: string;
+    isAuthentic: boolean;
+    storedHash: string;
+    recomputedHash: string;
+    academicData: {
+        studentName: string;
+        degreeTitle: string;
+        branch: string;
+        institutionName: string;
+        issueDate: string;
+    };
 }
 
 export default function PublicVerifyPage({ params }: { params: Promise<{ degreeId: string }> }) {
     const { degreeId } = use(params);
-    const [credential, setCredential] = useState<Credential | null>(null);
+    const [data, setData] = useState<VerificationData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -37,12 +42,12 @@ export default function PublicVerifyPage({ params }: { params: Promise<{ degreeI
             try {
                 setLoading(true);
                 const response = await fetch(`/api/verify/${degreeId}`);
-                const data = await response.json();
+                const result = await response.json();
 
-                if (data.success) {
-                    setCredential(data.credential);
+                if (result.success) {
+                    setData(result.verification);
                 } else {
-                    setError(data.message || "Credential Not Found");
+                    setError(result.message || "Credential Not Found");
                 }
             } catch (err) {
                 console.error("Verification error:", err);
@@ -63,162 +68,150 @@ export default function PublicVerifyPage({ params }: { params: Promise<{ degreeI
         });
     };
 
-    const shortenHash = (hash: string) => {
-        if (!hash) return "";
-        return `${hash.substring(0, 6)}...${hash.substring(hash.length - 4)}`;
-    };
-
-    // 1. Loading State
     if (loading) {
         return (
             <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center p-4">
                 <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
-                <p className="text-gray-400 font-medium animate-pulse">Verifying credential...</p>
+                <p className="text-gray-400 font-medium animate-pulse uppercase tracking-widest text-xs">Cryptographic Verification in Progress...</p>
             </div>
         );
     }
 
-    // 2. Error / Not Found State
-    if (error || !credential) {
+    if (error || !data) {
         return (
-            <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center p-4">
-                <div className="w-full max-w-md p-8 rounded-2xl border border-red-500/20 bg-red-500/5 text-center">
-                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <AlertCircle className="w-8 h-8 text-red-500" />
+            <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center p-4 text-white">
+                <div className="w-full max-w-md p-8 rounded-3xl border border-red-500/20 bg-red-500/5 text-center backdrop-blur-sm">
+                    <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-500/20">
+                        <AlertCircle className="w-10 h-10 text-red-500" />
                     </div>
-                    <h1 className="text-2xl font-bold text-white mb-2">Credential Not Found</h1>
-                    <p className="text-gray-400 mb-8">
-                        {error || "This credential does not exist or may have been removed."}
+                    <h1 className="text-2xl font-bold mb-2">Verification Failed</h1>
+                    <p className="text-gray-400 mb-8 text-sm leading-relaxed">
+                        {error || "The credential record could not be found or has been removed from the network."}
                     </p>
-                    <button 
-                        onClick={() => window.location.href = "/"}
-                        className="px-6 py-2.5 bg-[#111] border border-[#222] rounded-lg text-sm font-medium text-white hover:bg-[#1a1a1a] transition-colors"
+                    <Link 
+                        href="/"
+                        className="inline-flex items-center px-8 py-3 bg-white text-black rounded-full text-sm font-semibold hover:bg-gray-200 transition-all"
                     >
-                        Return Home
-                    </button>
+                        Return to Portal
+                    </Link>
                 </div>
             </div>
         );
     }
 
-    // 3. Verified State
+    const isTampered = data.status === "TAMPERED";
+    const isAuthentic = data.isAuthentic;
+
     return (
-        <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center p-4 py-12">
-            <div className="w-full max-w-[700px] space-y-8">
-                {/* Header Info */}
-                <div className="text-center space-y-3">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-brand/10 rounded-2xl mb-2">
-                        <ShieldCheck className="w-10 h-10 text-brand" />
+        <div className="min-h-screen bg-[#020202] text-white p-6 md:p-12 font-sans selection:bg-brand/30">
+            <div className="max-w-4xl mx-auto space-y-12">
+                {/* Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="space-y-1">
+                        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
+                            VERIDUS <span className="text-gray-600 font-normal">|</span> <span className="text-sm font-medium text-gray-400 uppercase tracking-[0.2em]">Verification Protocol</span>
+                        </h1>
+                        <p className="text-xs text-gray-500">Decentralized Academic Credential Verification Engine</p>
                     </div>
-                    <h1 className="text-3xl font-bold text-white tracking-tight">Credential Verification</h1>
-                    <p className="text-gray-400 max-w-md mx-auto">
-                        This academic credential has been securely verified through the VERIDUS platform.
-                    </p>
-                </div>
-
-                {/* Main Verification Card */}
-                <div className="relative overflow-hidden rounded-3xl border border-[#1C1C1C] bg-[#050505] shadow-2xl">
-                    {/* Status Ribbon */}
-                    <div className={`py-4 px-6 border-b border-[#1C1C1C] flex items-center justify-between ${
-                        credential.status === "valid" ? "bg-green-500/5" : "bg-red-500/5"
+                    
+                    <div className={`flex items-center gap-3 px-5 py-2.5 rounded-full border ${
+                        isAuthentic 
+                        ? "bg-green-500/5 border-green-500/20 text-green-500" 
+                        : "bg-red-500/5 border-red-500/20 text-red-500"
                     }`}>
-                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Verification Status</span>
-                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold uppercase tracking-wider ${
-                            credential.status === "valid" 
-                                ? "bg-green-500/10 text-green-400 border-green-500/20" 
-                                : "bg-red-500/10 text-red-400 border-red-500/20"
-                        }`}>
-                            {credential.status === "valid" ? "Verified Credential ✅" : "Credential Revoked ❌"}
-                        </div>
-                    </div>
-
-                    {/* Credential Content */}
-                    <div className="p-8 md:p-10 space-y-10">
-                        {/* Student & Degree */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                                    <User className="w-3 h-3" /> Student Name
-                                </label>
-                                <p className="text-xl font-semibold text-white">{credential.studentName}</p>
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                                    <GraduationCap className="w-3 h-3" /> Degree Title
-                                </label>
-                                <p className="text-xl font-semibold text-white">{credential.degreeTitle}</p>
-                            </div>
-                        </div>
-
-                        {/* Branch & Institution */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Branch / Field</label>
-                                <p className="text-lg text-gray-300 font-medium">{credential.branch}</p>
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                                    <Building2 className="w-3 h-3" /> Issuing Institution
-                                </label>
-                                <p className="text-lg text-gray-300 font-medium">{credential.institutionName}</p>
-                            </div>
-                        </div>
-
-                        {/* Metadata: Date & ID */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-[#1C1C1C]">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2.5 bg-[#0A0A0A] rounded-lg border border-[#111]">
-                                    <Calendar className="w-4 h-4 text-gray-500" />
-                                </div>
-                                <div>
-                                    <p className="text-[9px] font-bold text-gray-500 uppercase tracking-tighter">Issue Date</p>
-                                    <p className="text-sm text-gray-300 font-medium">{formatDate(credential.issueDate)}</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <div className="p-2.5 bg-[#0A0A0A] rounded-lg border border-[#111]">
-                                    <Fingerprint className="w-4 h-4 text-gray-500" />
-                                </div>
-                                <div>
-                                    <p className="text-[9px] font-bold text-gray-500 uppercase tracking-tighter">Credential ID</p>
-                                    <p className="text-sm text-gray-300 font-mono font-medium">{credential.degreeId}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Blockchain Proof Improvement */}
-                        {credential.blockchainTxHash && (
-                            <div className="p-4 rounded-xl bg-brand/5 border border-brand/10 flex items-center justify-between group cursor-help">
-                                <div className="flex items-center gap-3">
-                                    <LinkIcon className="w-4 h-4 text-brand" />
-                                    <div>
-                                        <p className="text-[10px] font-bold text-brand uppercase tracking-widest">Blockchain Proof Available</p>
-                                        <p className="text-xs text-gray-500 font-mono mt-0.5">{shortenHash(credential.blockchainTxHash)}</p>
-                                    </div>
-                                </div>
-                                <ExternalLink className="w-4 h-4 text-gray-700 group-hover:text-brand transition-colors" />
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Footer Action */}
-                    <div className="p-6 bg-[#0A0A0A] border-t border-[#1C1C1C] flex justify-center">
-                        <button 
-                            onClick={() => window.open(`/api/certificates/${credential.degreeId}`, "_blank")}
-                            className="flex items-center gap-2.5 px-8 py-3 bg-white text-black rounded-xl font-bold text-sm hover:bg-gray-200 transition-all active:scale-95 shadow-lg"
-                        >
-                            <FileText className="w-4 h-4" />
-                            View Certificate
-                        </button>
+                        {isAuthentic ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+                        <span className="text-sm font-bold uppercase tracking-wider">
+                            {isAuthentic ? "Authenticity Verified" : isTampered ? "Integrity Compromised" : "Credential Invalid"}
+                        </span>
                     </div>
                 </div>
 
-                {/* Platform Link */}
-                <div className="text-center">
-                    <p className="text-[10px] text-gray-600 font-medium uppercase tracking-[0.2em]">
-                        Verified Academic Records • Powered by VERIDUS
-                    </p>
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                    {/* Left: Credential Data */}
+                    <div className="lg:col-span-3 space-y-8">
+                        <div className="p-8 rounded-[2.5rem] border border-[#1C1C1C] bg-[#080808] space-y-10 shadow-2xl">
+                            <div className="flex items-center justify-between border-b border-[#1C1C1C] pb-6">
+                                <h2 className="text-lg font-semibold text-gray-200">Credential Details</h2>
+                                <span className="text-[10px] font-mono text-gray-500 px-3 py-1 bg-[#111] border border-[#1C1C1C] rounded-full">ID: {data.degreeId}</span>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-10 gap-x-6">
+                                <DetailItem icon={User} label="Student Name" value={data.academicData.studentName} />
+                                <DetailItem icon={GraduationCap} label="Degree Title" value={data.academicData.degreeTitle} />
+                                <DetailItem icon={Building2} label="Institution" value={data.academicData.institutionName} />
+                                <DetailItem icon={Info} label="Branch / Specialization" value={data.academicData.branch} />
+                                <DetailItem icon={Calendar} label="Issuance Date" value={formatDate(data.academicData.issueDate)} />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right: Security & Hash */}
+                    <div className="lg:col-span-2 space-y-6">
+                        <div className="p-6 rounded-3xl border border-[#1C1C1C] bg-[#080808] space-y-6">
+                            <div className="flex items-center gap-3 text-gray-400">
+                                <Fingerprint className="w-5 h-5" />
+                                <h3 className="text-sm font-bold uppercase tracking-wider">Hash Integrity</h3>
+                            </div>
+                            
+                            <div className="space-y-4">
+                                <HashBox label="Stored Ledger Hash" hash={data.storedHash} />
+                                <HashBox 
+                                    label="Real-time Recomputed Hash" 
+                                    hash={data.recomputedHash} 
+                                    status={isTampered ? "error" : "success"}
+                                />
+                            </div>
+
+                            {isAuthentic && (
+                                <div className="p-4 rounded-2xl bg-green-500/5 border border-green-500/10 flex gap-4">
+                                    <ShieldCheck className="w-6 h-6 text-green-500 shrink-0" />
+                                    <p className="text-xs text-green-500/80 leading-relaxed">
+                                        The cryptographic fingerprint matches the ledger record. This credential is valid and has not been altered since issuance.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-6 rounded-3xl border border-brand/20 bg-brand/5 space-y-4">
+                            <h3 className="text-sm font-bold text-brand uppercase tracking-wider">Why Verification Matters</h3>
+                            <p className="text-xs text-gray-400 leading-relaxed">
+                                VERIDUS uses deterministic hashing to ensure every credential is tamper-proof. Scanning this QR code re-runs the hash algorithm against current database values to ensure absolute integrity.
+                            </p>
+                        </div>
+                    </div>
                 </div>
+
+                {/* Footer */}
+                <div className="text-center pt-8 border-t border-[#111]">
+                    <p className="text-xs text-gray-600 uppercase tracking-widest">Powered by Veridus Protocol © 2026</p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function DetailItem({ icon: Icon, label, value }: { icon: any, label: string, value: string }) {
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center gap-2 text-gray-500">
+                <Icon className="w-4 h-4" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+            </div>
+            <p className="text-lg font-medium text-white">{value}</p>
+        </div>
+    );
+}
+
+function HashBox({ label, hash, status }: { label: string, hash: string, status?: "success" | "error" }) {
+    return (
+        <div className="space-y-2">
+            <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">{label}</p>
+            <div className={`p-3 rounded-xl bg-[#030303] border font-mono text-[10px] break-all leading-relaxed ${
+                status === "success" ? "border-green-500/30 text-green-500/70" :
+                status === "error" ? "border-red-500/30 text-red-500/70" :
+                "border-[#1C1C1C] text-gray-500"
+            }`}>
+                {hash}
             </div>
         </div>
     );

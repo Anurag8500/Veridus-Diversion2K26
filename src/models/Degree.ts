@@ -16,6 +16,9 @@ export interface IDegree extends Document {
     ipfsHash?: string | null;
     blockchainTxHash?: string | null;
     credentialHash?: string | null;
+    hashAlgorithm?: string;
+    verificationUrl?: string;
+    qrCode?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -83,6 +86,17 @@ const DegreeSchema = new Schema<IDegree>(
         credentialHash: {
             type: String,
             default: null,
+            index: true,
+        },
+        hashAlgorithm: {
+            type: String,
+            default: "SHA256",
+        },
+        verificationUrl: {
+            type: String,
+        },
+        qrCode: {
+            type: String, // Base64 or URL
         },
     },
     {

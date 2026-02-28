@@ -7,6 +7,12 @@ import { generateCredentialHash } from "@/lib/hashCredential";
  * Public API endpoint for credential verification.
  * Anyone can access this endpoint to verify a degreeId.
  * GET /api/verify/[degreeId]
+ * 
+ * Logic:
+ * 1. Fetch stored degree by degreeId.
+ * 2. Recompute hash from stored data using deterministic SHA256.
+ * 3. Compare recomputedHash with stored credentialHash.
+ * 4. Detect tampering if hashes do not match.
  */
 export async function GET(
     req: NextRequest,
@@ -17,10 +23,8 @@ export async function GET(
         const resolvedParams = await params;
         const degreeId = resolvedParams.degreeId;
 
-        // 1. Fetch degree and populate institution name
-        const degree = await Degree.findOne({ degreeId })
-            .populate("universityId", "name")
-            .lean();
+        // 1. Fetch degree from database
+        const degree = await Degree.findOne({ degreeId }).lean();
 
         // 2. Handle missing credential
         if (!degree) {
@@ -30,47 +34,55 @@ export async function GET(
             );
         }
 
-        const institutionName = (degree.universityId as any)?.name || "Unknown Institution";
-        let verificationStatus = degree.status;
+        let isTampered = false;
+        let calculatedHash = null;
 
         // 3. Perform Hash Integrity Check (Tamper-proofing)
         if (degree.credentialHash) {
-            const calculatedHash = generateCredentialHash({
+            calculatedHash = generateCredentialHash({
                 degreeId: degree.degreeId,
+                studentWallet: degree.studentWallet,
+                institutionWallet: degree.institutionWallet,
                 studentName: degree.studentName,
                 degreeTitle: degree.degreeTitle,
                 branch: degree.branch,
-                issueDate: degree.issueDate,
-                institutionName: institutionName
+                issueDate: degree.issueDate
             });
 
             if (calculatedHash !== degree.credentialHash) {
-                verificationStatus = "TAMPERED";
+                isTampered = true;
             }
+        } else {
+            // If for some reason a degree exists without a hash, mark as invalid/tampered for safety
+            isTampered = true;
         }
 
-        // 4. Construct safe response (excluding sensitive ObjectIds/IDs)
-        const safeCredential = {
+        // 4. Construct verification response
+        const verificationResult = {
             degreeId: degree.degreeId,
-            studentName: degree.studentName,
-            degreeTitle: degree.degreeTitle,
-            branch: degree.branch,
-            issueDate: degree.issueDate,
-            status: verificationStatus,
-            institutionName: institutionName,
-            isAuthentic: verificationStatus !== "TAMPERED"
+            status: isTampered ? "TAMPERED" : degree.status,
+            isAuthentic: !isTampered && degree.status === "valid",
+            storedHash: degree.credentialHash,
+            recomputedHash: calculatedHash,
+            academicData: {
+                studentName: degree.studentName,
+                degreeTitle: degree.degreeTitle,
+                branch: degree.branch,
+                institutionName: degree.institutionName,
+                issueDate: degree.issueDate
+            }
         };
 
         return NextResponse.json(
             {
                 success: true,
-                credential: safeCredential
+                verification: verificationResult
             },
             { status: 200 }
         );
 
     } catch (error: any) {
-        console.error("[PUBLIC VERIFY API ERROR]", error);
+        console.error("Verification fetch error:", error);
         return NextResponse.json(
             { success: false, message: "Internal server error during verification" },
             { status: 500 }

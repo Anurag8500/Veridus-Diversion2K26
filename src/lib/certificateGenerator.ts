@@ -103,7 +103,7 @@ export async function generateCertificate(degree: IDegree | any): Promise<string
             // LEFT SIDE
             doc.font("Helvetica-Bold").fontSize(12).fillColor("#000000");
             doc.text("Issuing Institution:", 80, 470, { lineBreak: false });
-            doc.font("Helvetica").text(degree.universityId?.name || "Verified University", 80, 490, { lineBreak: false });
+            doc.font("Helvetica").text(degree.institutionName || "Verified University", 80, 490, { lineBreak: false });
             
             doc.font("Helvetica-Bold").text("Issue Date:", 80, 520, { lineBreak: false });
             doc.font("Helvetica").text(formattedDate, 80, 540, { lineBreak: false });

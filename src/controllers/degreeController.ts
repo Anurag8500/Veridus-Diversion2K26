@@ -2,6 +2,7 @@ import Degree from "@/models/Degree";
 import User from "@/models/User";
 import { generateDegreeId } from "@/lib/degreeUtils";
 import { generateCredentialHash } from "@/lib/hashCredential";
+import QRCode from "qrcode";
 
 /**
  * Interface for the degree issuance payload.
@@ -67,14 +68,20 @@ export const issueDegree = async (institutionWallet: string, payload: IssueDegre
     const instName = university.institutionName || university.name || "Unknown Institution";
     const credentialHash = generateCredentialHash({
         degreeId: uniqueDegreeId,
+        studentWallet: normalizedStudentWallet,
+        institutionWallet: normalizedInstitutionWallet,
         studentName,
         degreeTitle,
         branch,
         issueDate,
-        institutionName: instName,
     });
 
-    // 6. Create Degree document
+    // 6. Generate QR Code and Verification URL
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const verificationUrl = `${appUrl}/verify/${uniqueDegreeId}`;
+    const qrCodeBase64 = await QRCode.toDataURL(verificationUrl);
+
+    // 7. Create Degree document
     const newDegree = await Degree.create({
         degreeId: uniqueDegreeId,
         studentWallet: normalizedStudentWallet,
@@ -86,6 +93,8 @@ export const issueDegree = async (institutionWallet: string, payload: IssueDegre
         issueDate,
         credentialHash,
         status: "valid",
+        verificationUrl,
+        qrCode: qrCodeBase64
     });
 
     return newDegree;
