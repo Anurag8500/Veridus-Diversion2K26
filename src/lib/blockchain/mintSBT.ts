@@ -13,7 +13,8 @@ import { ethers } from "ethers";
      new ethers.Wallet(privateKey, provider); 
  
    const abi = [ 
-     "function mint(address to, string memory tokenURI) public returns(uint256)" 
+     "function mint(address to, string memory tokenURI) public returns(uint256)",
+     "event SoulboundMinted(address indexed student, uint256 tokenId, string degreeId)"
    ]; 
  
    return new ethers.Contract( 
@@ -36,6 +37,23 @@ import { ethers } from "ethers";
      ); 
  
    const receipt = await tx.wait(); 
+
+   // Extract tokenId from logs
+   // VeridusSBT.sol emits SoulboundMinted(address indexed student, uint256 tokenId, string degreeId)
+   const event = receipt.logs
+     .map((log: any) => {
+       try {
+         return contract.interface.parseLog(log);
+       } catch (e) {
+         return null;
+       }
+     })
+     .find((parsedLog: any) => parsedLog && parsedLog.name === "SoulboundMinted");
+
+   const tokenId = event ? Number(event.args[1]) : null;
  
-   return receipt.hash; 
+   return {
+     txHash: receipt.hash,
+     tokenId: tokenId
+   }; 
  } 

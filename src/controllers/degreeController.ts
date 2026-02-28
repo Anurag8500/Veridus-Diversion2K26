@@ -118,16 +118,17 @@ export const issueDegree = async (institutionWallet: string, payload: IssueDegre
     try {
         const metadataURI = newDegree.verificationUrl;
         if (metadataURI) {
-            const sbtTx = await mintSoulbound(
+            const { txHash, tokenId } = await mintSoulbound(
                 normalizedStudentWallet,
                 metadataURI
             );
-            newDegree.sbtTxHash = sbtTx;
+            newDegree.sbtTxHash = txHash;
+            newDegree.sbtTokenId = tokenId;
+            newDegree.sbtContract = process.env.SBT_CONTRACT_ADDRESS;
             await newDegree.save();
         }
     } catch (sbtError) {
         console.error("[SBT MINT ERROR]", sbtError);
-        // We do not throw here, as per requirements
     }
 
     return newDegree;

@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract VeridusSBT is ERC721, Ownable { 
 
     uint256 public nextTokenId; 
+    string private baseTokenURI;
 
     mapping(uint256 => bool) public locked; 
 
@@ -16,10 +17,12 @@ contract VeridusSBT is ERC721, Ownable {
         string degreeId 
     ); 
 
-    constructor() 
-        ERC721("Veridus Credential", "VERC") 
+    constructor(string memory _initialBaseURI) 
+        ERC721("Veridus Credential", "VERIDUS") 
         Ownable(msg.sender) 
-    {} 
+    {
+        baseTokenURI = _initialBaseURI;
+    } 
 
     function mint( 
         address student, 
@@ -63,5 +66,13 @@ contract VeridusSBT is ERC721, Ownable {
         } 
 
         return from; 
-    } 
+    }
+
+    function _baseURI() internal view override returns (string memory) {
+        return baseTokenURI;
+    }
+
+    function setBaseURI(string memory _newBaseURI) external onlyOwner {
+        baseTokenURI = _newBaseURI;
+    }
 } 

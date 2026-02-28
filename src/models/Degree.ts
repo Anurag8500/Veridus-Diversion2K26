@@ -17,6 +17,7 @@ export interface IDegree extends Document {
     blockchainTxHash?: string | null;
     anchoredAt?: Date | null;
     sbtTokenId?: number | null;
+    sbtContract?: string | null;
     sbtTxHash?: string | null;
     credentialHash?: string | null;
     hashAlgorithm?: string;
@@ -92,6 +93,10 @@ const DegreeSchema = new Schema<IDegree>(
         },
         sbtTokenId: {
             type: Number,
+            default: null,
+        },
+        sbtContract: {
+            type: String,
             default: null,
         },
         sbtTxHash: {
