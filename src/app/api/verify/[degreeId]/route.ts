@@ -42,20 +42,47 @@ export async function GET(
 
         // 3. Perform Hash Integrity Check (Tamper-proofing)
         if (degree.credentialHash) {
+            // Normalize issueDate to ensure consistent comparison
+            let normalizedIssueDate = degree.issueDate;
+            if (normalizedIssueDate instanceof Date) {
+                normalizedIssueDate = normalizedIssueDate.toISOString();
+            } else if (typeof normalizedIssueDate === 'string') {
+                // Ensure it's in ISO format
+                try {
+                    normalizedIssueDate = new Date(normalizedIssueDate).toISOString();
+                } catch (e) {
+                    console.error("[DATE NORMALIZATION ERROR]", e);
+                }
+            }
+
+            // Recompute hash from current database values
             calculatedHash = generateCredentialHash({
-                degreeId: degree.degreeId,
-                studentWallet: degree.studentWallet,
-                institutionWallet: degree.institutionWallet,
-                studentName: degree.studentName,
-                degreeTitle: degree.degreeTitle,
-                branch: degree.branch,
-                issueDate: degree.issueDate
+                degreeId: String(degree.degreeId || ""),
+                studentWallet: String(degree.studentWallet || "").toLowerCase(),
+                institutionWallet: String(degree.institutionWallet || "").toLowerCase(),
+                studentName: String(degree.studentName || ""),
+                degreeTitle: String(degree.degreeTitle || ""),
+                branch: String(degree.branch || ""),
+                issueDate: normalizedIssueDate
             });
 
-            if (calculatedHash !== degree.credentialHash) {
+            // Strict comparison - any mismatch indicates tampering
+            const hashMatch = calculatedHash === degree.credentialHash;
+            
+            if (!hashMatch) {
                 isTampered = true;
+                console.warn(`[TAMPER DETECTED] degreeId: ${degreeId}`);
+                console.warn(`  Stored Hash:    ${degree.credentialHash}`);
+                console.warn(`  Calculated Hash: ${calculatedHash}`);
+                console.warn(`  Current DB Values:`, {
+                    degreeId: degree.degreeId,
+                    studentName: degree.studentName,
+                    degreeTitle: degree.degreeTitle,
+                    branch: degree.branch,
+                    issueDate: degree.issueDate
+                });
             } else {
-                // 3b. Perform Blockchain Validation
+                // 3b. Perform Blockchain Validation (only if hash matches)
                 try {
                     blockchainVerified = await verifyOnChain(degree.credentialHash);
                 } catch (bcError) {
@@ -66,6 +93,7 @@ export async function GET(
         } else {
             // If for some reason a degree exists without a hash, mark as invalid/tampered for safety
             isTampered = true;
+            console.warn(`[MISSING HASH] degreeId: ${degreeId} has no credentialHash`);
         }
 
         // 4. Construct verification response

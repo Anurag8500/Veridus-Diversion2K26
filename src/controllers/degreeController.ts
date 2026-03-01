@@ -88,7 +88,18 @@ export const issueDegree = async (institutionWallet: string, payload: IssueDegre
     const verificationUrl = `${appUrl}/verify/${uniqueDegreeId}`;
     const qrCodeBase64 = await QRCode.toDataURL(verificationUrl);
 
-    // 7. Create Degree document
+    // 7. Parse and validate CGPA
+    let parsedCGPA: number | null = null;
+    if (cgpa !== undefined && cgpa !== null) {
+        const parsed = parseFloat(cgpa.toString());
+        if (!isNaN(parsed) && parsed >= 0 && parsed <= 10) {
+            parsedCGPA = parsed;
+        } else {
+            console.warn(`[CGPA VALIDATION] Invalid CGPA value: ${cgpa}, setting to null`);
+        }
+    }
+
+    // 8. Create Degree document
     const newDegree = await Degree.create({
         degreeId: uniqueDegreeId,
         studentWallet: normalizedStudentWallet,
@@ -98,14 +109,16 @@ export const issueDegree = async (institutionWallet: string, payload: IssueDegre
         degreeTitle,
         branch,
         issueDate,
-        cgpa: cgpa !== undefined && cgpa !== null ? parseFloat(cgpa.toString()) : null,
+        cgpa: parsedCGPA,
         credentialHash,
         status: "valid",
         verificationUrl,
         qrCode: qrCodeBase64
     });
 
-    // 8. Blockchain Anchoring
+    console.log(`[DEGREE CREATED] degreeId: ${uniqueDegreeId}, cgpa: ${parsedCGPA}`);
+
+    // 9. Blockchain Anchoring
     // If blockchain anchoring fails, credential issuance must STILL succeed.
     try {
         if (newDegree.credentialHash) {
