@@ -18,6 +18,7 @@ export interface IssueDegreePayload {
     studentName: string;
     degreeTitle: string;
     branch: string;
+    cgpa?: number | null; // Optional CGPA for ZK-proof generation
     credentialHash?: string | null;
 }
 
@@ -30,7 +31,7 @@ export interface IssueDegreePayload {
  * @throws Error if validation fails or student is not found.
  */
 export const issueDegree = async (institutionWallet: string, payload: IssueDegreePayload) => {
-    const { studentWallet, studentName, degreeTitle, branch } = payload;
+    const { studentWallet, studentName, degreeTitle, branch, cgpa } = payload;
 
     // 1. Validate required fields
     if (!studentWallet || !studentName || !degreeTitle || !branch || !institutionWallet) {
@@ -97,6 +98,7 @@ export const issueDegree = async (institutionWallet: string, payload: IssueDegre
         degreeTitle,
         branch,
         issueDate,
+        cgpa: cgpa !== undefined && cgpa !== null ? parseFloat(cgpa.toString()) : null,
         credentialHash,
         status: "valid",
         verificationUrl,

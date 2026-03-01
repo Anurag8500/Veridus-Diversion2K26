@@ -10,7 +10,11 @@ import {
     Share2, 
     Loader2, 
     AlertCircle,
-    FileText
+    FileText,
+    Lock,
+    X,
+    CheckCircle2,
+    Copy
 } from "lucide-react";
 
 interface Degree {
@@ -21,6 +25,7 @@ interface Degree {
     branch: string;
     issueDate: string;
     status: string;
+    cgpa?: number | null;
 }
 
 export default function MyCredentialsPage() {
@@ -31,6 +36,15 @@ export default function MyCredentialsPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const fetchStarted = useRef(false);
     const lastFetchedAddress = useRef<string | null>(null);
+    
+    // ZK-Proof modal state
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [selectedDegree, setSelectedDegree] = useState<Degree | null>(null);
+    const [disclosureType, setDisclosureType] = useState<"full" | "degree_only" | "gpa_threshold">("degree_only");
+    const [gpaThreshold, setGpaThreshold] = useState<string>("8.0");
+    const [generatingProof, setGeneratingProof] = useState(false);
+    const [generatedProof, setGeneratedProof] = useState<{ proofId: string; verificationUrl: string } | null>(null);
+    const [proofError, setProofError] = useState<string>("");
 
     useEffect(() => {
         const fetchDegrees = async () => {
@@ -67,6 +81,58 @@ export default function MyCredentialsPage() {
         degree.institutionName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         degree.degreeId.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    const handleSharePrivately = (degree: Degree) => {
+        setSelectedDegree(degree);
+        setShowShareModal(true);
+        setGeneratedProof(null);
+        setProofError("");
+        // If degree doesn't have CGPA, default to degree_only instead of gpa_threshold
+        setDisclosureType(degree.cgpa ? "degree_only" : "degree_only");
+        setGpaThreshold("8.0");
+    };
+
+    const handleGenerateProof = async () => {
+        if (!selectedDegree || !address) return;
+
+        // Prevent GPA threshold if CGPA is not available
+        if (disclosureType === "gpa_threshold" && (selectedDegree.cgpa === null || selectedDegree.cgpa === undefined)) {
+            setProofError("This credential does not have CGPA data. Please select a different disclosure option.");
+            return;
+        }
+
+        setGeneratingProof(true);
+        setProofError("");
+        try {
+            const response = await fetch("/api/zk-proof/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    degreeId: selectedDegree.degreeId,
+                    studentWallet: address,
+                    disclosureType,
+                    gpaThreshold: disclosureType === "gpa_threshold" ? parseFloat(gpaThreshold) : undefined,
+                }),
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                setGeneratedProof(data.proof);
+                setProofError("");
+            } else {
+                setProofError(data.message || "Failed to generate proof");
+            }
+        } catch (err) {
+            console.error("Error generating proof:", err);
+            setProofError("An unexpected error occurred while generating the proof.");
+        } finally {
+            setGeneratingProof(false);
+        }
+    };
+
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text);
+    };
 
     return (
         <div className="space-y-8">
@@ -184,8 +250,12 @@ export default function MyCredentialsPage() {
                                                 >
                                                     <Download className="w-4 h-4" />
                                                 </button>
-                                                <button title="Share Credential" className="p-1.5 text-gray-500 hover:text-white hover:bg-[#1C1C1C] rounded transition-colors">
-                                                    <Share2 className="w-4 h-4" />
+                                                <button 
+                                                    title="Share Privately" 
+                                                    onClick={() => handleSharePrivately(cred)}
+                                                    className="p-1.5 text-gray-500 hover:text-white hover:bg-[#1C1C1C] rounded transition-colors"
+                                                >
+                                                    <Lock className="w-4 h-4" />
                                                 </button>
                                             </div>
                                         </td>
@@ -215,6 +285,190 @@ export default function MyCredentialsPage() {
                             Clear search filter
                         </button>
                     )}
+                </div>
+            )}
+
+            {/* Share Privately Modal */}
+            {showShareModal && selectedDegree && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-[#050505] border border-[#1C1C1C] rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-6 border-b border-[#1C1C1C] flex items-center justify-between">
+                            <div>
+                                <h2 className="text-xl font-semibold text-white">Share Privately</h2>
+                                <p className="text-sm text-gray-400 mt-1">Generate a ZK-proof for selective disclosure</p>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setShowShareModal(false);
+                                    setGeneratedProof(null);
+                                    setProofError("");
+                                }}
+                                className="p-2 text-gray-400 hover:text-white hover:bg-[#1C1C1C] rounded-lg transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-6">
+                            {!generatedProof ? (
+                                <>
+                                    <div className="space-y-4">
+                                        <div className="p-4 bg-[#0A0A0A] border border-[#1C1C1C] rounded-lg">
+                                            <p className="text-sm font-medium text-white mb-1">{selectedDegree.degreeTitle}</p>
+                                            <p className="text-xs text-gray-400">{selectedDegree.institutionName}</p>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <label className="flex items-start gap-3 p-4 bg-[#0A0A0A] border border-[#1C1C1C] rounded-lg cursor-pointer hover:bg-[#111] transition-colors">
+                                                <input
+                                                    type="radio"
+                                                    name="disclosure"
+                                                    checked={disclosureType === "full"}
+                                                    onChange={() => setDisclosureType("full")}
+                                                    className="mt-1"
+                                                />
+                                                <div className="flex-1">
+                                                    <p className="text-sm font-medium text-white">Share Full Certificate</p>
+                                                    <p className="text-xs text-gray-400 mt-1">Reveal all credential details</p>
+                                                </div>
+                                            </label>
+
+                                            <label className="flex items-start gap-3 p-4 bg-[#0A0A0A] border border-[#1C1C1C] rounded-lg cursor-pointer hover:bg-[#111] transition-colors">
+                                                <input
+                                                    type="radio"
+                                                    name="disclosure"
+                                                    checked={disclosureType === "degree_only"}
+                                                    onChange={() => setDisclosureType("degree_only")}
+                                                    className="mt-1"
+                                                />
+                                                <div className="flex-1">
+                                                    <p className="text-sm font-medium text-white">Share Proof of Degree only (Hide Marks)</p>
+                                                    <p className="text-xs text-gray-400 mt-1">Verify degree without revealing grades or CGPA</p>
+                                                </div>
+                                            </label>
+
+                                            <label className={`flex items-start gap-3 p-4 border rounded-lg transition-colors ${
+                                                selectedDegree.cgpa !== null && selectedDegree.cgpa !== undefined
+                                                    ? "bg-[#0A0A0A] border-[#1C1C1C] cursor-pointer hover:bg-[#111]" 
+                                                    : "bg-[#050505] border-[#1C1C1C]/50 cursor-not-allowed opacity-60"
+                                            }`}>
+                                                <input
+                                                    type="radio"
+                                                    name="disclosure"
+                                                    checked={disclosureType === "gpa_threshold"}
+                                                    onChange={() => (selectedDegree.cgpa !== null && selectedDegree.cgpa !== undefined) && setDisclosureType("gpa_threshold")}
+                                                    disabled={selectedDegree.cgpa === null || selectedDegree.cgpa === undefined}
+                                                    className="mt-1 disabled:cursor-not-allowed"
+                                                />
+                                                <div className="flex-1">
+                                                    <p className="text-sm font-medium text-white">Share Proof of GPA &gt; [Threshold]</p>
+                                                    <p className="text-xs text-gray-400 mt-1">
+                                                        {selectedDegree.cgpa !== null && selectedDegree.cgpa !== undefined
+                                                            ? "Prove CGPA meets threshold without revealing actual value"
+                                                            : "This credential does not have CGPA data. Please contact your institution to add CGPA information."
+                                                        }
+                                                    </p>
+                                                    {disclosureType === "gpa_threshold" && selectedDegree.cgpa !== null && selectedDegree.cgpa !== undefined && (
+                                                        <div className="mt-3">
+                                                            <input
+                                                                type="number"
+                                                                step="0.1"
+                                                                min="0"
+                                                                max="10"
+                                                                value={gpaThreshold}
+                                                                onChange={(e) => setGpaThreshold(e.target.value)}
+                                                                placeholder="8.0"
+                                                                className="w-full px-3 py-2 bg-[#050505] border border-[#1C1C1C] rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    {proofError && (
+                                        <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-lg">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <AlertCircle className="w-4 h-4 text-red-500" />
+                                                <p className="text-sm font-medium text-red-500">Error</p>
+                                            </div>
+                                            <p className="text-xs text-red-400/80">{proofError}</p>
+                                        </div>
+                                    )}
+
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={handleGenerateProof}
+                                            disabled={generatingProof}
+                                            className="flex-1 px-4 py-3 bg-brand text-white rounded-lg font-medium hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                        >
+                                            {generatingProof ? (
+                                                <>
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                    Generating Proof...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Lock className="w-4 h-4" />
+                                                    Generate Verification Link
+                                                </>
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setShowShareModal(false);
+                                                setGeneratedProof(null);
+                                            }}
+                                            className="px-4 py-3 bg-[#0A0A0A] border border-[#1C1C1C] text-gray-300 rounded-lg font-medium hover:bg-[#111] transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="p-6 bg-green-500/5 border border-green-500/20 rounded-lg">
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <CheckCircle2 className="w-6 h-6 text-green-500" />
+                                            <h3 className="text-lg font-semibold text-white">Proof Generated Successfully</h3>
+                                        </div>
+                                        <p className="text-sm text-gray-400 mb-4">
+                                            Your verification link has been created. Share this URL with verifiers to prove your credentials without revealing sensitive information.
+                                        </p>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Verification URL</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={generatedProof.verificationUrl}
+                                                    readOnly
+                                                    className="flex-1 px-4 py-2.5 bg-[#0A0A0A] border border-[#1C1C1C] rounded-lg text-sm text-white font-mono"
+                                                />
+                                                <button
+                                                    onClick={() => copyToClipboard(generatedProof.verificationUrl)}
+                                                    className="px-4 py-2.5 bg-[#0A0A0A] border border-[#1C1C1C] rounded-lg hover:bg-[#111] transition-colors"
+                                                    title="Copy URL"
+                                                >
+                                                    <Copy className="w-4 h-4 text-gray-400" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            setShowShareModal(false);
+                                            setGeneratedProof(null);
+                                            setProofError("");
+                                        }}
+                                        className="w-full px-4 py-3 bg-brand text-white rounded-lg font-medium hover:bg-brand-hover transition-colors"
+                                    >
+                                        Done
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

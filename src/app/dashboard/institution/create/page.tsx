@@ -31,6 +31,27 @@ export default function CreateCredentialPage() {
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
+    // Helper function to parse and format CGPA for display
+    const parseCGPAForDisplay = (gradeStr: string): string => {
+        if (!gradeStr || !gradeStr.trim()) return "";
+        
+        const trimmed = gradeStr.trim();
+        
+        // If it's in format "X/Y", show it as-is
+        if (trimmed.includes('/')) {
+            return trimmed;
+        }
+        
+        // If it's a direct number, show it with one decimal place if needed
+        const numericMatch = trimmed.match(/(\d+\.?\d*)/);
+        if (numericMatch) {
+            const num = parseFloat(numericMatch[1]);
+            return num % 1 === 0 ? num.toString() : num.toFixed(1);
+        }
+        
+        return trimmed;
+    };
+
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
         if (selectedFile) {
@@ -85,6 +106,44 @@ export default function CreateCredentialPage() {
         setError("");
 
         try {
+            // Parse CGPA from grade field (handles formats like "9.4", "3.8/4.0", "9.4/10", etc.)
+            let cgpa: number | null = null;
+            if (formData.grade && formData.grade.trim()) {
+                const gradeStr = formData.grade.trim();
+                
+                // If it's in format "X/Y", handle fraction conversion
+                if (gradeStr.includes('/')) {
+                    const parts = gradeStr.split('/').map(p => p.trim());
+                    if (parts.length === 2) {
+                        const numerator = parseFloat(parts[0]);
+                        const denominator = parseFloat(parts[1]);
+                        if (!isNaN(numerator) && !isNaN(denominator) && denominator > 0) {
+                            // Convert to 10-point scale if denominator is 4 or less
+                            if (denominator <= 4) {
+                                cgpa = (numerator / denominator) * 10;
+                            } else {
+                                // Already in 10-point scale or other scale - use numerator as-is
+                                cgpa = numerator;
+                            }
+                        }
+                    }
+                } else {
+                    // Direct numeric value - extract first number found
+                    const numericMatch = gradeStr.match(/(\d+\.?\d*)/);
+                    if (numericMatch) {
+                        cgpa = parseFloat(numericMatch[1]);
+                    }
+                }
+                
+                // Clamp to 0-10 range and validate
+                if (cgpa !== null) {
+                    if (cgpa > 10) cgpa = 10;
+                    if (cgpa < 0) cgpa = 0;
+                    // Only set if it's a valid number
+                    if (isNaN(cgpa)) cgpa = null;
+                }
+            }
+
             const response = await fetch("/api/degrees/issue", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -94,6 +153,7 @@ export default function CreateCredentialPage() {
                     studentName: formData.studentName,
                     degreeTitle: formData.degreeTitle,
                     branch: formData.fieldOfStudy,
+                    cgpa: cgpa, // Include parsed CGPA
                     // Note: In a real app, we would upload the file to IPFS/S3 here
                     // For now, we just pass the file name as a placeholder for credentialHash
                     credentialHash: file ? `FILE_UPLOADED:${file.name}` : null,
@@ -252,16 +312,17 @@ export default function CreateCredentialPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-300">
-                                        Grade / CGPA (optional)
+                                        CGPA / GPA
                                     </label>
                                     <input
                                         type="text"
                                         name="grade"
                                         value={formData.grade}
                                         onChange={handleChange}
-                                        placeholder="e.g. 3.8/4.0 or First Class"
+                                        placeholder="e.g. 9.4, 3.8/4.0, or 8.5/10"
                                         className="w-full bg-[#0A0A0A] border border-[#222] rounded-lg px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-white transition-colors"
                                     />
+                                    <p className="text-xs text-gray-500">Enter CGPA value (will be converted to 10-point scale if needed)</p>
                                 </div>
                                 <div className="space-y-2 md:col-span-2">
                                     <label className="text-sm font-medium text-gray-300">
@@ -396,6 +457,12 @@ export default function CreateCredentialPage() {
                                             <span className="text-gray-500">Class of:</span>
                                             <span className="text-right break-words">{formData.graduationYear || "—"}</span>
                                         </div>
+                                        {formData.grade && (
+                                            <div className="flex justify-between items-start gap-4 pt-2 border-t border-[#1C1C1C]">
+                                                <span className="text-gray-500">CGPA:</span>
+                                                <span className="font-medium text-right break-words">{parseCGPAForDisplay(formData.grade)}</span>
+                                            </div>
+                                        )}
                                     </div>
                                     
                                     {file && (

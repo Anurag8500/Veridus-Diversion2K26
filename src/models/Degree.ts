@@ -12,6 +12,7 @@ export interface IDegree extends Document {
     degreeTitle: string;
     branch: string;
     issueDate: Date;
+    cgpa?: number | null; // Optional CGPA/GPA field for ZK-proof generation
     status: "valid" | "revoked";
     ipfsHash?: string | null;
     ipfsPdfCID?: string | null;
@@ -95,6 +96,12 @@ const DegreeSchema = new Schema<IDegree>(
         issueDate: {
             type: Date,
             default: Date.now,
+        },
+        cgpa: {
+            type: Number,
+            default: null,
+            min: 0,
+            max: 10,
         },
         status: {
             type: String,
