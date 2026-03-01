@@ -116,63 +116,10 @@ export const issueDegree = async (institutionWallet: string, payload: IssueDegre
         console.error("[BLOCKCHAIN ANCHORING ERROR]", bcError);
     }
 
-    // 9. IPFS Storage & Soulbound Token (SBT) Minting
-    // If IPFS or SBT fails, credential issuance must STILL succeed.
-    try {
-        // A. Generate Certificate PDF
-        console.log("Generating certificate PDF...");
-        const pdfPath = await generateCertificate(newDegree);
-        const pdfBuffer = fs.readFileSync(pdfPath);
-
-        // B. Upload PDF to IPFS
-        console.log("Uploading certificate PDF to IPFS...");
-        const pdfCID = await uploadFile(pdfBuffer, `${newDegree.degreeId}.pdf`);
-        const pdfURL = `${process.env.NEXT_PUBLIC_GATEWAY}${pdfCID}`;
-        console.log("PDF URL:", pdfURL);
-        newDegree.ipfsPdfCID = pdfCID;
-
-        // C. Create & Upload ERC721 Metadata to IPFS
-        // NFT image uses a static card; animation_url links to the full PDF on IPFS.
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-        const metadata = {
-            name: `${newDegree.studentName} - ${newDegree.degreeTitle}`,
-            description: "VERIDUS Tamper-Proof Academic Credential. This token is soulbound and serves as permanent proof of achievement.",
-            image: `${appUrl}/veridus-certificate-card.png`,
-            animation_url: pdfURL,
-            external_url: newDegree.verificationUrl,
-            attributes: [
-                { trait_type: "Institution", value: newDegree.institutionName },
-                { trait_type: "Branch", value: newDegree.branch },
-                { trait_type: "Degree ID", value: newDegree.degreeId },
-                { trait_type: "Status", value: newDegree.status.toUpperCase() }
-            ]
-        };
-
-        console.log("Uploading metadata to IPFS...");
-        const metadataCID = await uploadJSON(metadata);
-        console.log("Metadata CID:", metadataCID);
-
-        const tokenURI = `${process.env.NEXT_PUBLIC_GATEWAY}${metadataCID}`;
-
-        newDegree.ipfsMetadataCID = metadataCID;
-        newDegree.tokenURI = tokenURI;
-        await newDegree.save();
-
-        // D. Mint Soulbound Token using the permanent IPFS tokenURI
-        const { txHash, tokenId } = await mintSoulbound(
-            normalizedStudentWallet,
-            tokenURI
-        );
-
-        newDegree.sbtTxHash = txHash;
-        newDegree.sbtTokenId = tokenId;
-        newDegree.sbtContract = process.env.SBT_CONTRACT_ADDRESS;
-        await newDegree.save();
-
-    } catch (ipfsOrSbtError) {
-        console.warn("IPFS unavailable — continuing issuance");
-        console.error("[IPFS/SBT ERROR]", ipfsOrSbtError);
-    }
+    // 9. Certificate generation and IPFS upload DEFERRED until after customization
+    // The certificate will be generated with customizations in the /api/degrees/[degreeId]/customize endpoint
+    // This ensures all customizations are applied before IPFS upload and SBT minting
+    console.log("Credential created. Certificate generation deferred until customization.");
 
     // Refetch with .lean() to get a plain object, then safeSerialize to strip
     // any remaining Mongoose internals, ObjectIds, and Date prototypes.

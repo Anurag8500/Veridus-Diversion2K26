@@ -27,6 +27,24 @@ export interface IDegree extends Document {
     hashAlgorithm?: string;
     verificationUrl?: string;
     qrCode?: string;
+    customization?: {
+        headerColor?: string;
+        borderColor?: string;
+        accentColor?: string;
+        backgroundColor?: string;
+        titleFont?: string;
+        nameFont?: string;
+        bodyFont?: string;
+        layout?: string;
+        showQR?: boolean;
+        showBorder?: boolean;
+        showWatermark?: boolean;
+        logoPosition?: string;
+        logoUrl?: string;
+        borderStyle?: string;
+        headerStyle?: string;
+    };
+    customizationUpdatedAt?: Date | null;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -137,6 +155,30 @@ const DegreeSchema = new Schema<IDegree>(
         },
         qrCode: {
             type: String, // Base64 or URL
+        },
+        customization: {
+            type: {
+                headerColor: { type: String, default: "#000000" },
+                borderColor: { type: String, default: "#1C1C1C" },
+                accentColor: { type: String, default: "#8B5CF6" },
+                backgroundColor: { type: String, default: "#FFFFFF" },
+                titleFont: { type: String, default: "Times-Roman" },
+                nameFont: { type: String, default: "Times-Bold" },
+                bodyFont: { type: String, default: "Helvetica" },
+                layout: { type: String, default: "classic" },
+                showQR: { type: Boolean, default: true },
+                showBorder: { type: Boolean, default: true },
+                showWatermark: { type: Boolean, default: false },
+                logoPosition: { type: String, default: "top-center" },
+                logoUrl: { type: String, default: null },
+                borderStyle: { type: String, default: "double" },
+                headerStyle: { type: String, default: "centered" },
+            },
+            default: {},
+        },
+        customizationUpdatedAt: {
+            type: Date,
+            default: null,
         },
     },
     {

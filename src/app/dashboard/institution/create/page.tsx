@@ -104,10 +104,10 @@ export default function CreateCredentialPage() {
 
             if (data.success) {
                 setSuccess(true);
-                // Reset form after 2 seconds and redirect
+                // Redirect to customization page
                 setTimeout(() => {
-                    router.push("/dashboard/institution/records");
-                }, 2000);
+                    router.push(`/dashboard/institution/customize-certificate/${data.degree.degreeId}`);
+                }, 1500);
             } else {
                 setError(data.message || "Failed to issue credential.");
             }
@@ -126,10 +126,10 @@ export default function CreateCredentialPage() {
                     <CheckCircle2 className="w-10 h-10 text-green-500" />
                 </div>
                 <div className="text-center">
-                    <h2 className="text-2xl font-semibold">Credential Issued Successfully!</h2>
-                    <p className="text-gray-400 mt-2">The student will now see this in their dashboard.</p>
+                    <h2 className="text-2xl font-semibold">Credential Created Successfully!</h2>
+                    <p className="text-gray-400 mt-2">Redirecting to customization...</p>
                 </div>
-                <p className="text-sm text-gray-500 animate-pulse">Redirecting to records...</p>
+                <p className="text-sm text-gray-500 animate-pulse">Preparing certificate editor...</p>
             </div>
         );
     }

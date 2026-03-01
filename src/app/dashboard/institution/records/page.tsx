@@ -143,10 +143,57 @@ export default function CredentialRecordsPage() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                <button title="View Details" className="p-1.5 text-gray-500 hover:text-white hover:bg-[#1C1C1C] rounded transition-colors">
+                                                <button 
+                                                    title="View Certificate" 
+                                                    onClick={async () => {
+                                                        try {
+                                                            const response = await fetch(`/api/certificates/${cred.degreeId}`);
+                                                            if (response.ok) {
+                                                                window.open(`/api/certificates/${cred.degreeId}`, "_blank");
+                                                            } else {
+                                                                const data = await response.json();
+                                                                if (data.needsCustomization) {
+                                                                    alert("Certificate not yet generated. Please complete customization first.");
+                                                                    window.location.href = `/dashboard/institution/customize-certificate/${cred.degreeId}`;
+                                                                } else {
+                                                                    alert(data.message || "Failed to load certificate");
+                                                                }
+                                                            }
+                                                        } catch (err) {
+                                                            alert("Error loading certificate");
+                                                        }
+                                                    }}
+                                                    className="p-1.5 text-gray-500 hover:text-white hover:bg-[#1C1C1C] rounded transition-colors"
+                                                >
                                                     <Eye className="w-4 h-4" />
                                                 </button>
-                                                <button title="Download Copy" className="p-1.5 text-gray-500 hover:text-white hover:bg-[#1C1C1C] rounded transition-colors">
+                                                <button 
+                                                    title="Download Certificate" 
+                                                    onClick={async () => {
+                                                        try {
+                                                            const response = await fetch(`/api/certificates/${cred.degreeId}`);
+                                                            if (response.ok) {
+                                                                const link = document.createElement("a");
+                                                                link.href = `/api/certificates/${cred.degreeId}`;
+                                                                link.download = `${cred.degreeId}.pdf`;
+                                                                document.body.appendChild(link);
+                                                                link.click();
+                                                                document.body.removeChild(link);
+                                                            } else {
+                                                                const data = await response.json();
+                                                                if (data.needsCustomization) {
+                                                                    alert("Certificate not yet generated. Please complete customization first.");
+                                                                    window.location.href = `/dashboard/institution/customize-certificate/${cred.degreeId}`;
+                                                                } else {
+                                                                    alert(data.message || "Failed to load certificate");
+                                                                }
+                                                            }
+                                                        } catch (err) {
+                                                            alert("Error downloading certificate");
+                                                        }
+                                                    }}
+                                                    className="p-1.5 text-gray-500 hover:text-white hover:bg-[#1C1C1C] rounded transition-colors"
+                                                >
                                                     <Download className="w-4 h-4" />
                                                 </button>
                                                 <button title="More Options" className="p-1.5 text-gray-500 hover:text-white hover:bg-[#1C1C1C] rounded transition-colors">

@@ -1,6 +1,5 @@
 import connectDB from "@/lib/mongodb";
 import Degree from "@/models/Degree";
-import { generateCertificate } from "@/lib/certificateGenerator";
 import fs from "fs";
 import path from "path";
 import { NextRequest, NextResponse } from "next/server";
@@ -48,12 +47,32 @@ export async function GET(
         // 4. Define the file path for the certificate
         const filePath = path.join(process.cwd(), "storage", "certificates", `${degreeId}.pdf`);
 
-        // 5. Generate the certificate if it doesn't already exist
+        // 5. Check if certificate exists
         if (!fs.existsSync(filePath)) {
-            await generateCertificate(degree);
+            // If no customization, show message that customization is needed
+            if (!degree.customization && !degree.customizationUpdatedAt) {
+                return NextResponse.json(
+                    { 
+                        success: false, 
+                        message: "Certificate not yet generated. Please complete customization first.",
+                        needsCustomization: true
+                    },
+                    { status: 404 }
+                );
+            }
+            
+            // If customization exists but file doesn't, something went wrong
+            return NextResponse.json(
+                { 
+                    success: false, 
+                    message: "Certificate file not found. Please regenerate from customization page.",
+                    needsCustomization: true
+                },
+                { status: 404 }
+            );
         }
 
-        // 6. Read the PDF file
+        // 6. Read and serve the PDF file
         const pdfBuffer = fs.readFileSync(filePath);
 
         // 7. Return the PDF as an inline response
@@ -61,6 +80,7 @@ export async function GET(
             headers: {
                 "Content-Type": "application/pdf",
                 "Content-Disposition": `inline; filename="${degreeId}.pdf"`,
+                "Cache-Control": "private, max-age=3600", // Cache for 1 hour
             },
         });
     } catch (error: any) {
