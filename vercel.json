@@ -1,0 +1,14 @@
+{
+  "functions": {
+    "src/app/api/degrees/[degreeId]/customize/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/degrees/issue/route.ts": {
+      "maxDuration": 60
+    }
+  },
+  "env": {
+    "NEXT_PUBLIC_APP_URL": "https://veridus.vercel.app",
+    "NEXT_PUBLIC_GATEWAY": "https://gateway.pinata.cloud/ipfs/"
+  }
+}

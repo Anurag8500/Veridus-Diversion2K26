@@ -8,6 +8,10 @@ import fs from "fs";
 import path from "path";
 import PDFDocument from "pdfkit";
 
+// Force Node.js runtime (required for blockchain operations)
+export const runtime = 'nodejs';
+export const maxDuration = 60; // 60 seconds timeout for minting
+
 export async function POST(
     req: NextRequest,
     { params }: { params: Promise<{ degreeId: string }> }
@@ -111,7 +115,27 @@ export async function POST(
             });
 
             // C. Mint SBT first (with temporary metadata)
-            console.log("Minting SBT to student wallet...");
+            console.log("=== MINTING SBT ===");
+            console.log("Student Wallet:", degree.studentWallet);
+            
+            // Environment check
+            console.log("Environment Check:");
+            console.log("- PRIVATE_KEY exists:", !!process.env.PRIVATE_KEY);
+            console.log("- PRIVATE_KEY length:", process.env.PRIVATE_KEY?.length || 0);
+            console.log("- SBT_CONTRACT_ADDRESS:", process.env.SBT_CONTRACT_ADDRESS);
+            console.log("- RPC_URL:", process.env.RPC_URL?.substring(0, 50) + "...");
+            
+            // Validate environment variables
+            if (!process.env.PRIVATE_KEY) {
+                throw new Error("PRIVATE_KEY not configured in deployment environment");
+            }
+            if (!process.env.SBT_CONTRACT_ADDRESS) {
+                throw new Error("SBT_CONTRACT_ADDRESS not configured in deployment environment");
+            }
+            if (!process.env.RPC_URL) {
+                throw new Error("RPC_URL not configured in deployment environment");
+            }
+            
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
             
             // Create temporary metadata for minting
@@ -134,17 +158,23 @@ export async function POST(
                 console.log("Uploading temporary metadata to IPFS...");
                 const tempMetadataCID = await uploadJSON(tempMetadata);
                 const tempTokenURI = `${process.env.NEXT_PUBLIC_GATEWAY}${tempMetadataCID}`;
+                console.log("Temp metadata URI:", tempTokenURI);
                 
+                console.log("Calling mintSoulbound...");
                 const { txHash, tokenId } = await mintSoulbound(
                     degree.studentWallet,
                     tempTokenURI
                 );
 
+                console.log("=== MINTING SUCCESS ===");
+                console.log("TX Hash:", txHash);
+                console.log("Token ID:", tokenId);
+
                 degree.sbtTxHash = txHash;
                 degree.sbtTokenId = tokenId;
                 degree.sbtContract = process.env.SBT_CONTRACT_ADDRESS;
                 await degree.save();
-                console.log("SBT minted successfully. Token ID:", tokenId);
+                console.log("SBT data saved to database");
             } else {
                 console.log("SBT already minted. Token ID:", degree.sbtTokenId);
             }
@@ -175,10 +205,37 @@ export async function POST(
 
             console.log("=== CERTIFICATE GENERATION COMPLETE ===");
 
-        } catch (error) {
-            console.error("Error processing certificate:", error);
+        } catch (error: any) {
+            console.error("=== CERTIFICATE PROCESSING ERROR ===");
+            console.error("Error name:", error.name);
+            console.error("Error message:", error.message);
+            console.error("Error stack:", error.stack);
+            
+            // Provide detailed error information
+            const errorDetails: any = {
+                message: error.message,
+                name: error.name,
+            };
+            
+            // Add environment check to error response
+            if (error.message?.includes("PRIVATE_KEY") || 
+                error.message?.includes("RPC_URL") || 
+                error.message?.includes("CONTRACT_ADDRESS")) {
+                errorDetails.environmentCheck = {
+                    hasPrivateKey: !!process.env.PRIVATE_KEY,
+                    hasContractAddress: !!process.env.SBT_CONTRACT_ADDRESS,
+                    hasRpcUrl: !!process.env.RPC_URL,
+                    hint: "Check deployment environment variables"
+                };
+            }
+            
             return NextResponse.json(
-                { success: false, message: "Failed to process certificate with customizations" },
+                { 
+                    success: false, 
+                    message: "Failed to process certificate with customizations",
+                    error: error.message,
+                    details: errorDetails
+                },
                 { status: 500 }
             );
         }
