@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Menu } from "lucide-react";
 
 export function Navbar() {
@@ -26,8 +27,17 @@ export function Navbar() {
             }`}>
             <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                 <div className="flex items-center gap-12">
-                    <Link href="/" className="text-xl font-medium tracking-tight text-text-primary">
-                        VERIDUS
+                    <Link href="/" className="flex items-center gap-3">
+                        <Image
+                            src="/logo.png"
+                            alt="Veridus Logo"
+                            width={40}
+                            height={40}
+                            className="object-contain"
+                        />
+                        <span className="text-2xl font-bold tracking-wider text-text-primary">
+                            VERIDUS
+                        </span>
                     </Link>
                     <div className="hidden md:flex items-center gap-8 text-sm font-medium text-text-secondary">
                         <Link href="#how-it-works" className="hover:text-text-primary transition-colors">How It Works</Link>
