@@ -58,3 +58,8 @@
     text-shadow: 0 0 40px rgba(255, 255, 255, 0.15);
   }
 }
+
+/* Hide Next.js Dev Error Indicator (development only) */
+nextjs-portal {
+  display: none !important;
+}

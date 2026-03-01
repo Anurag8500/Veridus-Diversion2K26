@@ -48,15 +48,15 @@ export default function OverviewPage() {
                     const validDegrees = degrees.filter((d: any) => d.status === "valid").length;
                     
                     // Count unique students using wallet addresses
-                    const uniqueStudents = new Set(
+                    const uniqueStudentsCount = Array.from(new Set(
                         degrees
                             .filter((d: any) => d.studentWallet)
                             .map((d: any) => d.studentWallet)
-                    ).size;
+                    )).length;
 
                     setStats({
                         totalIssued,
-                        activeStudents: uniqueStudents,
+                        activeStudents: uniqueStudentsCount,
                         verifiedCount: validDegrees, // Assuming valid means verified for now
                         recentActivity: degrees.filter((d: any) => {
                             const oneWeekAgo = new Date();

@@ -3,6 +3,7 @@ import connectDB from "@/lib/mongodb";
 import Degree from "@/models/Degree";
 import { generateCredentialHash } from "@/lib/hashCredential";
 import { verifyOnChain } from "@/lib/blockchain/anchorCredential";
+import { safeSerialize } from "@/lib/utils/serialize";
 
 /**
  * Public API endpoint for credential verification.
@@ -89,7 +90,7 @@ export async function GET(
         return NextResponse.json(
             {
                 success: true,
-                verification: verificationResult
+                verification: safeSerialize(verificationResult)
             },
             { status: 200 }
         );

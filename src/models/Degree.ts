@@ -14,6 +14,10 @@ export interface IDegree extends Document {
     issueDate: Date;
     status: "valid" | "revoked";
     ipfsHash?: string | null;
+    ipfsPdfCID?: string | null;
+    ipfsImageCID?: string | null;
+    ipfsMetadataCID?: string | null;
+    tokenURI?: string | null;
     blockchainTxHash?: string | null;
     anchoredAt?: Date | null;
     sbtTokenId?: number | null;
@@ -80,6 +84,22 @@ const DegreeSchema = new Schema<IDegree>(
             default: "valid",
         },
         ipfsHash: {
+            type: String,
+            default: null,
+        },
+        ipfsPdfCID: {
+            type: String,
+            default: null,
+        },
+        ipfsImageCID: {
+            type: String,
+            default: null,
+        },
+        ipfsMetadataCID: {
+            type: String,
+            default: null,
+        },
+        tokenURI: {
             type: String,
             default: null,
         },

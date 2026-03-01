@@ -30,12 +30,16 @@ export default function MyCredentialsPage() {
     const [error, setError] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
     const fetchStarted = useRef(false);
+    const lastFetchedAddress = useRef<string | null>(null);
 
     useEffect(() => {
         const fetchDegrees = async () => {
             if (!isConnected || !address) return;
-            if (fetchStarted.current) return;
+            // Prevent duplicate fetch for the same address in the same component mount
+            if (fetchStarted.current && lastFetchedAddress.current === address) return;
+            
             fetchStarted.current = true;
+            lastFetchedAddress.current = address;
 
             try {
                 setLoading(true);

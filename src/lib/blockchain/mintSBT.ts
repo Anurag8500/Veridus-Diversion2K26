@@ -27,32 +27,37 @@ import BlockchainProvider from "./provider";
    studentWallet: string, 
    metadataURI: string 
  ) { 
-   const contract = getSBTContract(); 
+   try {
+     const contract = getSBTContract(); 
  
-   const tx = 
-     await contract.mint( 
-       studentWallet, 
-       metadataURI 
-     ); 
+     const tx = 
+       await contract.mint( 
+         studentWallet, 
+         metadataURI 
+       ); 
  
-   const receipt = await tx.wait(); 
+     const receipt = await tx.wait(); 
 
-   // Extract tokenId from logs
-   // VeridusSBT.sol emits SoulboundMinted(address indexed student, uint256 tokenId, string degreeId)
-   const event = receipt.logs
-     .map((log: any) => {
-       try {
-         return contract.interface.parseLog(log);
-       } catch (e) {
-         return null;
-       }
-     })
-     .find((parsedLog: any) => parsedLog && parsedLog.name === "SoulboundMinted");
+     // Extract tokenId from logs
+     // VeridusSBT.sol emits SoulboundMinted(address indexed student, uint256 tokenId, string degreeId)
+     const event = receipt.logs
+       .map((log: any) => {
+         try {
+           return contract.interface.parseLog(log);
+         } catch (e) {
+           return null;
+         }
+       })
+       .find((parsedLog: any) => parsedLog && parsedLog.name === "SoulboundMinted");
 
-   const tokenId = event ? Number(event.args[1]) : null;
+     const tokenId = event ? Number(event.args[1]) : null;
  
-   return {
-     txHash: receipt.hash,
-     tokenId: tokenId
-   }; 
+     return {
+       txHash: receipt.hash,
+       tokenId: tokenId
+     }; 
+   } catch (error) {
+     console.error("[SBT MINT ERROR]", error);
+     throw error; // Re-throw to be handled by caller (e.g., degreeController)
+   }
  } 

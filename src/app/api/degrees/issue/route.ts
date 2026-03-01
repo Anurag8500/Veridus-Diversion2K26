@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import { issueDegree } from "@/controllers/degreeController";
+import { safeSerialize } from "@/lib/utils/serialize";
 
 /**
  * API route for issuing a new degree.
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
             {
                 success: true,
                 message: "Degree issued successfully.",
-                degree,
+                degree: safeSerialize(degree),
             },
             { status: 201 }
         );

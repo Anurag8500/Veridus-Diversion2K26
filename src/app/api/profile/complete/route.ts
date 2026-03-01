@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ 
             success: true, 
             message: "Profile completed successfully",
-            user 
+            user: JSON.parse(JSON.stringify(user)) 
         });
 
     } catch (error: any) {

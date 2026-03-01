@@ -30,8 +30,10 @@ export default function ConnectWallet() {
   // Handle successful connection
   useEffect(() => {
     // ONLY proceed if the user actually clicked connect in this component session
-    if (!isConnected || !address || isLoggingIn || !userClickedConnect || loginStarted.current) return;
+    // We check address and isConnected, but also ensure we're not already logging in.
+    if (!isConnected || !address || !userClickedConnect || loginStarted.current || isLoggingIn) return;
     
+    // Set guard immediately
     loginStarted.current = true;
     setIsLoggingIn(true);
     setError(null);
@@ -95,7 +97,7 @@ export default function ConnectWallet() {
     };
 
     performLogin();
-  }, [isConnected, address, router, userClickedConnect, isLoggingIn]);
+  }, [isConnected, address, userClickedConnect]);
 
   const role = typeof window !== 'undefined' ? localStorage.getItem("selectedRole") : null;
 

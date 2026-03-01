@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import User from "@/models/User";
+import { safeSerialize } from "@/lib/utils/serialize";
 
 export async function POST(req: NextRequest) {
     try {
         await dbConnect();
-        
+
         let body;
         try {
             body = await req.json();
@@ -35,20 +36,20 @@ export async function POST(req: NextRequest) {
         const normalizedWalletAddress = walletAddress.toLowerCase();
 
         // 1. Find user by walletAddress
-        let user = await User.findOne({ walletAddress: normalizedWalletAddress });
+        let user = await User.findOne({ walletAddress: normalizedWalletAddress }).lean();
 
         if (user) {
-            // IF user exists: return existing user
-            return NextResponse.json({ user });
+            // IF user exists: return existing user (already plain via .lean())
+            return NextResponse.json({ user: safeSerialize(user) });
         } else {
             // IF user does NOT exist: create user
-            user = await User.create({
+            const newUser = await User.create({
                 walletAddress: normalizedWalletAddress,
                 role,
                 profileCompleted: false
             });
 
-            return NextResponse.json({ user }, { status: 201 });
+            return NextResponse.json({ user: safeSerialize(newUser) }, { status: 201 });
         }
     } catch (error: any) {
         console.error("Wallet login error:", error);

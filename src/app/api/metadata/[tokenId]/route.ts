@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Degree from "@/models/Degree";
+import { safeSerialize } from "@/lib/utils/serialize";
 
 /**
  * Dynamic NFT Metadata API
@@ -29,11 +30,11 @@ export async function GET(
 
         // 2. Construct ERC721 Metadata
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-        
+
         const metadata = {
             name: `${degree.degreeTitle} - ${degree.studentName}`,
             description: "Soulbound academic credential issued via VERIDUS Protocol. This token is non-transferable and serves as immutable proof of academic achievement.",
-            image: `${appUrl}/api/certificate-image/${degree.degreeId}`,
+            image: `${appUrl}/veridus-certificate-card.png`,
             external_url: `${appUrl}/verify/${degree.degreeId}`,
             attributes: [
                 {
@@ -59,7 +60,7 @@ export async function GET(
             ]
         };
 
-        return NextResponse.json(metadata);
+        return NextResponse.json(safeSerialize(metadata));
 
     } catch (error) {
         console.error("[METADATA API ERROR]", error);

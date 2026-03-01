@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import { getInstitutionDegrees } from "@/controllers/degreeController";
+import { safeSerialize } from "@/lib/utils/serialize";
 
 /**
  * API route to fetch degrees issued by a logged-in institution.
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json(
             {
                 success: true,
-                degrees,
+                degrees: safeSerialize(degrees),
             },
             { status: 200 }
         );

@@ -28,7 +28,12 @@ export async function anchorCredential(hash: string) {
 }
 
 export async function verifyOnChain(hash: string) {
-  const contract = getAnchorContract();
-  const result = await contract.verifyCredential("0x" + hash);
-  return result[2];
+  try {
+    const contract = getAnchorContract();
+    const result = await contract.verifyCredential("0x" + hash);
+    return result[2];
+  } catch (error) {
+    console.error("[BLOCKCHAIN VERIFICATION ERROR]", error);
+    return false; // Fail safe
+  }
 }
